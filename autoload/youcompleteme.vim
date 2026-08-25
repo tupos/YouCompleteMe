@@ -59,6 +59,10 @@ let s:pollers = {
       \     'id': -1,
       \     'wait_milliseconds': 100,
       \   },
+      \   'work_done_progress': {
+      \     'id': -1,
+      \     'wait_milliseconds': 100,
+      \   },
       \   'command': {
       \     'id': -1,
       \     'wait_milliseconds': 100,
@@ -84,6 +88,11 @@ let s:last_char_inserted_by_user = v:true
 let s:enable_hover = 0
 let s:cursorhold_popup = -1
 let s:enable_inlay_hints = 0
+let s:work_done_progress = []
+let s:work_done_progress_status = ''
+let s:work_done_progress_spinner = 0
+let s:work_done_progress_frames =
+      \ [ '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' ]
 
 let s:force_preview_popup = 0
 
@@ -106,6 +115,7 @@ function! s:ReceiveMessages( timer_id )
   if s:AllowedToCompleteInCurrentBuffer()
     let poll_again = py3eval( 'ycm_state.OnPeriodicTick()' )
   endif
+  call s:UpdateWorkDoneProgress()
 
   if poll_again
     let s:pollers.receive_messages.id = timer_start(
@@ -115,6 +125,61 @@ function! s:ReceiveMessages( timer_id )
     " Don't poll again until we open another buffer
     let s:pollers.receive_messages.id = -1
   endif
+endfunction
+
+
+function! s:SetWorkDoneProgressStatus() abort
+  let frame = s:work_done_progress_frames[ s:work_done_progress_spinner ]
+  let status_items = []
+  for item in s:work_done_progress
+    call add( status_items, frame . ( empty( item ) ? '' : ' ' . item ) )
+  endfor
+  let status = join( status_items, ' ' )
+
+  if status ==# s:work_done_progress_status
+    return
+  endif
+
+  let s:work_done_progress_status = status
+  silent doautocmd <nomodeline> User YcmStatusChanged
+  redrawstatus
+endfunction
+
+
+function! s:TickWorkDoneProgress( timer_id ) abort
+  if empty( s:work_done_progress )
+    let s:pollers.work_done_progress.id = -1
+    return
+  endif
+
+  let s:work_done_progress_spinner =
+        \ ( s:work_done_progress_spinner + 1 ) %
+        \ len( s:work_done_progress_frames )
+  call s:SetWorkDoneProgressStatus()
+  let s:pollers.work_done_progress.id = timer_start(
+        \ s:pollers.work_done_progress.wait_milliseconds,
+        \ function( 's:TickWorkDoneProgress' ) )
+endfunction
+
+
+function! s:UpdateWorkDoneProgress() abort
+  let progress = py3eval( 'ycm_state.GetWorkDoneProgress()' )
+  let was_empty = empty( s:work_done_progress )
+  let s:work_done_progress = progress
+
+  if empty( progress )
+    call s:StopPoller( s:pollers.work_done_progress )
+    let s:work_done_progress_spinner = 0
+  elseif s:pollers.work_done_progress.id < 0
+    if was_empty
+      let s:work_done_progress_spinner = 0
+    endif
+    let s:pollers.work_done_progress.id = timer_start(
+          \ s:pollers.work_done_progress.wait_milliseconds,
+          \ function( 's:TickWorkDoneProgress' ) )
+  endif
+
+  call s:SetWorkDoneProgressStatus()
 endfunction
 
 
@@ -261,6 +326,15 @@ endfunction
 
 function! youcompleteme#GetWarningCount()
   return py3eval( 'ycm_state.GetWarningCount()' )
+endfunction
+
+
+function! youcompleteme#GetStatus(...)
+  let status = s:work_done_progress_status
+  if get( a:, 1, 0 )
+    let status = substitute( status, '%', '%%', 'g' )
+  endif
+  return status
 endfunction
 
 
@@ -1417,6 +1491,7 @@ function! s:RestartServer()
   call s:SetUpOptions()
 
   py3 ycm_state.RestartServer()
+  call s:UpdateWorkDoneProgress()
 
   call s:StopPoller( s:pollers.receive_messages )
   call s:StopPoller( s:pollers.command )
@@ -1736,6 +1811,10 @@ endif
 
 function! youcompleteme#Test_GetPollers()
   return s:pollers
+endfunction
+
+function! youcompleteme#Test_UpdateWorkDoneProgress()
+  call s:UpdateWorkDoneProgress()
 endfunction
 
 function! s:ToggleSignatureHelp()

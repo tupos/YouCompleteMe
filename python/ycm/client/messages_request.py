@@ -41,7 +41,7 @@ class MessagesPoll( BaseRequest ):
     return
 
 
-  def Poll( self, diagnostics_handler ):
+  def Poll( self, message_handler ):
     """This should be called regularly to check for new messages in this buffer.
     Returns True if Poll should be called again in a while. Returns False when
     the completer or server indicated that further polling should not be done
@@ -62,7 +62,7 @@ class MessagesPoll( BaseRequest ):
       # Server returned an exception.
       return False
 
-    poll_again = _HandlePollResponse( response, diagnostics_handler )
+    poll_again = _HandlePollResponse( response, message_handler )
     if poll_again:
       self._SendRequest()
       return True
@@ -70,7 +70,7 @@ class MessagesPoll( BaseRequest ):
     return False
 
 
-def _HandlePollResponse( response, diagnostics_handler ):
+def _HandlePollResponse( response, message_handler ):
   if isinstance( response, list ):
     for notification in response:
       if 'message' in notification:
@@ -78,9 +78,12 @@ def _HandlePollResponse( response, diagnostics_handler ):
                         warning = False,
                         truncate = True )
       elif 'diagnostics' in notification:
-        diagnostics_handler.UpdateWithNewDiagnosticsForFile(
+        message_handler.UpdateWithNewDiagnosticsForFile(
           notification[ 'filepath' ],
           notification[ 'diagnostics' ] )
+      elif 'work_done_progress' in notification:
+        message_handler.UpdateWorkDoneProgress(
+          notification[ 'work_done_progress' ] )
   elif response is False:
     # Don't keep polling for this file
     return False

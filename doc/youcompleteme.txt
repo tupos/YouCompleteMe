@@ -125,11 +125,13 @@ Contents ~
   9. Functions                                        |youcompleteme-functions|
    1. The |youcompleteme#GetErrorCount| function
    2. The |youcompleteme#GetWarningCount| function
-   3. The 'youcompleteme#GetCommandResponse( ... )' function |youcompleteme#GetCommandResponse()|
-   4. The 'youcompleteme#GetCommandResponseAsync( callback, ... )' function |youcompleteme#GetCommandResponseAsync()|
+   3. The |youcompleteme#GetStatus()| function
+   4. The 'youcompleteme#GetCommandResponse( ... )' function |youcompleteme#GetCommandResponse()|
+   5. The 'youcompleteme#GetCommandResponseAsync( callback, ... )' function |youcompleteme#GetCommandResponseAsync()|
   10. Autocommands                                 |youcompleteme-autocommands|
    1. The |YcmLocationOpened| autocommand
    2. The |YcmQuickFixOpened| autocommand
+   3. The |YcmStatusChanged| autocommand
   11. Options
    1. The |g:ycm_min_num_of_chars_for_completion| option
    2. The |g:ycm_min_num_identifier_candidate_chars| option
@@ -2752,6 +2754,38 @@ For example:
   call youcompleteme#GetWarningCount()
 <
 -------------------------------------------------------------------------------
+                                             *youcompleteme#GetStatus()*
+The 'youcompleteme#GetStatus( ... )' function ~
+
+Returns the current YCM status text. Language Server Protocol work-done
+progress is displayed with an animated spinner, title, message, and percentage
+when provided by the language server. For example: >
+
+  set statusline^=%{youcompleteme#GetStatus()}
+<
+Pass a truthy argument to escape '%' as '%%' for statusline integrations that
+interpret the returned value as a statusline format string: >
+
+  call youcompleteme#GetStatus( 1 )
+<
+The function returns an empty string when there is no active progress.
+
+For vim-airline [106], define a component after Airline initializes and append
+it to the center section: >
+
+  function! s:AddYcmProgressToAirline() abort
+    let g:airline_section_c .= ' %{youcompleteme#GetStatus()}'
+  endfunction
+
+  augroup ycm_airline_progress
+    autocmd!
+    autocmd User AirlineAfterInit call <SID>AddYcmProgressToAirline()
+  augroup END
+<
+The existing `g:airline#extensions#ycm#enabled` option controls Airline's YCM
+diagnostic counters; it does not add the progress status.
+
+-------------------------------------------------------------------------------
                                            *youcompleteme#GetCommandResponse()*
 The 'youcompleteme#GetCommandResponse( ... )' function ~
 
@@ -2877,6 +2911,15 @@ quickfix window. For instance:
   endfunction
   
   autocmd User YcmQuickFixOpened call s:CustomizeYcmQuickFixWindow()
+<
+-------------------------------------------------------------------------------
+The *YcmStatusChanged* autocommand
+
+This 'User' autocommand is fired whenever the value returned by
+|youcompleteme#GetStatus()| changes. Statusline plugins can use it to refresh
+their display. For example: >
+
+  autocmd User YcmStatusChanged redrawstatus
 <
 -------------------------------------------------------------------------------
 Options ~
@@ -4254,5 +4297,6 @@ References ~
 [103] https://www.budihuman.rs/en
 [104] https://www.cancerresearchuk.org
 [105] https://iccf.nl
+[106] https://github.com/vim-airline/vim-airline
 
 vim: ft=help

@@ -2455,6 +2455,37 @@ For example:
   call youcompleteme#GetWarningCount()
 ```
 
+### The `youcompleteme#GetStatus()` function
+
+Returns the current YCM status text. Language Server Protocol work-done
+progress is displayed with an animated spinner, title, message, and percentage
+when provided by the language server. Add it to the statusline with:
+
+```viml
+set statusline^=%{youcompleteme#GetStatus()}
+```
+
+Pass a truthy argument to escape `%` as `%%` for statusline integrations that
+interpret the returned value as a statusline format string. The function
+returns an empty string when there is no active progress.
+
+For [vim-airline][], define a component after Airline initializes and append it
+to the center section:
+
+```viml
+function! s:AddYcmProgressToAirline() abort
+  let g:airline_section_c .= ' %{youcompleteme#GetStatus()}'
+endfunction
+
+augroup ycm_airline_progress
+  autocmd!
+  autocmd User AirlineAfterInit call <SID>AddYcmProgressToAirline()
+augroup END
+```
+
+The existing `g:airline#extensions#ycm#enabled` option controls Airline's YCM
+diagnostic counters; it does not add the progress status.
+
 ### The `youcompleteme#GetCommandResponse( ... )` function
 
 Run a [completer subcommand](#ycmcompleter-subcommands) and return the result as
@@ -2584,6 +2615,16 @@ function! s:CustomizeYcmQuickFixWindow()
 endfunction
 
 autocmd User YcmQuickFixOpened call s:CustomizeYcmQuickFixWindow()
+```
+
+### The `YcmStatusChanged` autocommand
+
+This `User` autocommand is fired whenever the value returned by
+`youcompleteme#GetStatus()` changes. Statusline plugins can use it to refresh
+their display:
+
+```viml
+autocmd User YcmStatusChanged redrawstatus
 ```
 
 Options
@@ -4001,3 +4042,4 @@ Please note: The YCM maintainers do not specifically endorse nor necessarily hav
 [diagnostic-echo-virtual-text1]: https://user-images.githubusercontent.com/10584846/185707973-39703699-0263-47d3-82ac-639d52259bea.png
 [diagnostic-echo-virtual-text2]: https://user-images.githubusercontent.com/10584846/185707993-14ff5fd7-c082-4e5a-b825-f1364e619b6a.png
 [jedi-refactor-doc]: https://jedi.readthedocs.io/en/latest/docs/api.html#jedi.Script.extract_variable
+[vim-airline]: https://github.com/vim-airline/vim-airline

@@ -101,6 +101,23 @@ class MessagesRequestTest( TestCase ):
       ] )
 
 
+  def test_HandlePollResponse_WorkDoneProgress( self ):
+    message_handler = ExtendedMock()
+    progress = {
+      'server': 'clangd',
+      'token': 'index',
+      'kind': 'begin',
+      'title': 'Indexing',
+    }
+
+    assert_that( _HandlePollResponse(
+      [ { 'work_done_progress': progress } ], message_handler ),
+      equal_to( True ) )
+    message_handler.UpdateWorkDoneProgress.assert_has_exact_calls( [
+      call( progress )
+    ] )
+
+
   @patch( 'ycm.client.messages_request.PostVimMessage',
           new_callable = ExtendedMock )
   def test_HandlePollResponse_MultipleMessagesAndDiagnostics(

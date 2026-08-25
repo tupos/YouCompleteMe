@@ -47,6 +47,7 @@ from ycm.client.omni_completion_request import OmniCompletionRequest
 from ycm.client.event_notification import SendEventNotificationAsync
 from ycm.client.shutdown_request import SendShutdownRequest
 from ycm.client.messages_request import MessagesPoll
+from ycm.work_done_progress import WorkDoneProgressState
 
 
 def PatchNoProxy():
@@ -170,6 +171,7 @@ class YouCompleteMe:
     self._filetypes_with_keywords_loaded = set()
     self._server_is_ready_with_cache = False
     self._message_poll_requests = {}
+    self._work_done_progress = WorkDoneProgressState()
 
     self._latest_completion_request = None
     self._latest_signature_help_request = None
@@ -595,6 +597,7 @@ class YouCompleteMe:
   def OnPeriodicTick( self ):
     if not self.IsServerAlive():
       # Server has died. We'll reset when the server is started again.
+      self._work_done_progress.Clear()
       return False
     elif not self.IsServerReady():
       # Try again in a jiffy
@@ -737,6 +740,14 @@ class YouCompleteMe:
 
   def GetWarningCount( self ):
     return self.CurrentBuffer().GetWarningCount()
+
+
+  def UpdateWorkDoneProgress( self, progress ):
+    self._work_done_progress.Update( progress )
+
+
+  def GetWorkDoneProgress( self ):
+    return self._work_done_progress.Items()
 
 
   def _PopulateLocationListWithLatestDiagnostics( self ):
