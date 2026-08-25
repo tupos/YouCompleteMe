@@ -27,6 +27,7 @@ class WorkDoneProgressStateTest( TestCase ):
 
     state.Update( {
       'server': 'clangd',
+      'connection_generation': 1,
       'token': 'index',
       'kind': 'begin',
       'title': 'Indexing',
@@ -38,6 +39,7 @@ class WorkDoneProgressStateTest( TestCase ):
 
     state.Update( {
       'server': 'clangd',
+      'connection_generation': 1,
       'token': 'index',
       'kind': 'report',
       'percentage': 42.4,
@@ -47,6 +49,7 @@ class WorkDoneProgressStateTest( TestCase ):
 
     state.Update( {
       'server': 'clangd',
+      'connection_generation': 1,
       'token': 'index',
       'kind': 'report',
       'message': 'Finishing',
@@ -56,6 +59,7 @@ class WorkDoneProgressStateTest( TestCase ):
 
     state.Update( {
       'server': 'clangd',
+      'connection_generation': 1,
       'token': 'index',
       'kind': 'end',
     } )
@@ -66,12 +70,14 @@ class WorkDoneProgressStateTest( TestCase ):
     state = WorkDoneProgressState()
     state.Update( {
       'server': 'clangd',
+      'connection_generation': 1,
       'token': 1,
       'kind': 'begin',
       'title': 'Indexing',
     } )
     state.Update( {
       'server': 'rust-analyzer',
+      'connection_generation': 1,
       'token': 1,
       'kind': 'begin',
       'title': 'Checking',
@@ -89,10 +95,18 @@ class WorkDoneProgressStateTest( TestCase ):
     state = WorkDoneProgressState()
 
     for progress in (
-        { 'kind': 'begin', 'server': None, 'token': 1 },
-        { 'kind': 'begin', 'server': 'clangd', 'token': True },
-        { 'kind': 'report', 'server': 'clangd', 'token': 1 },
-        { 'kind': 'end', 'server': 'clangd', 'token': 1 } ):
+        { 'kind': 'begin', 'server': None,
+          'connection_generation': 1, 'token': 1 },
+        { 'kind': 'begin', 'server': 'clangd',
+          'connection_generation': True, 'token': 1 },
+        { 'kind': 'begin', 'server': 'clangd',
+          'connection_generation': 0, 'token': 1 },
+        { 'kind': 'begin', 'server': 'clangd',
+          'connection_generation': 1, 'token': True },
+        { 'kind': 'report', 'server': 'clangd',
+          'connection_generation': 1, 'token': 1 },
+        { 'kind': 'end', 'server': 'clangd',
+          'connection_generation': 1, 'token': 1 } ):
       state.Update( progress )
 
     assert_that( state.Items(), empty() )
@@ -103,6 +117,7 @@ class WorkDoneProgressStateTest( TestCase ):
     state = WorkDoneProgressState()
     state.Update( {
       'server': 'clangd',
+      'connection_generation': 1,
       'token': 1,
       'kind': 'begin',
       'title': 'Indexing',
@@ -110,6 +125,7 @@ class WorkDoneProgressStateTest( TestCase ):
     } )
     state.Update( {
       'server': 'clangd',
+      'connection_generation': 1,
       'token': 1,
       'kind': 'begin',
       'title': 'Replacement',
@@ -118,9 +134,78 @@ class WorkDoneProgressStateTest( TestCase ):
     for percentage in ( True, -1, 101, float( 'nan' ) ):
       state.Update( {
         'server': 'clangd',
+        'connection_generation': 1,
         'token': 1,
         'kind': 'report',
         'percentage': percentage,
       } )
 
     assert_that( state.Items(), contains_exactly( 'Indexing 10%' ) )
+
+
+  def test_WorkDoneProgressState_ClearsOnlyEndedConnectionGeneration( self ):
+    state = WorkDoneProgressState()
+    state.Update( {
+      'server': 'clangd',
+      'connection_generation': 7,
+      'token': 'old',
+      'kind': 'begin',
+      'title': 'Old indexing',
+    } )
+    state.Update( {
+      'server': 'clangd',
+      'connection_generation': 8,
+      'token': 'new',
+      'kind': 'begin',
+      'title': 'New indexing',
+    } )
+    state.Update( {
+      'server': 'rust-analyzer',
+      'connection_generation': 3,
+      'token': 'check',
+      'kind': 'begin',
+      'title': 'Checking',
+    } )
+
+    state.ClearForServerGeneration( 'clangd', 7 )
+
+    assert_that( state.Items(), contains_exactly(
+      'New indexing', 'Checking' ) )
+
+
+  def test_WorkDoneProgressState_IgnoresDelayedClearedGeneration( self ):
+    state = WorkDoneProgressState()
+    state.ClearForServerGeneration( 'clangd', 7 )
+
+    state.Update( {
+      'server': 'clangd',
+      'connection_generation': 7,
+      'token': 'old',
+      'kind': 'begin',
+      'title': 'Old indexing',
+    } )
+    state.Update( {
+      'server': 'clangd',
+      'connection_generation': 8,
+      'token': 'new',
+      'kind': 'begin',
+      'title': 'New indexing',
+    } )
+
+    assert_that( state.Items(), contains_exactly( 'New indexing' ) )
+
+
+  def test_WorkDoneProgressState_FullClearResetsGenerationHistory( self ):
+    state = WorkDoneProgressState()
+    state.ClearForServerGeneration( 'clangd', 7 )
+    state.Clear()
+
+    state.Update( {
+      'server': 'clangd',
+      'connection_generation': 1,
+      'token': 'after-ycmd-restart',
+      'kind': 'begin',
+      'title': 'Indexing',
+    } )
+
+    assert_that( state.Items(), contains_exactly( 'Indexing' ) )
