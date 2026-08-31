@@ -66,9 +66,8 @@ class WorkDoneProgressState:
     if key not in self._progress:
       return
 
-    message = _Text( progress.get( 'message' ) )
-    if message:
-      self._progress[ key ][ 'message' ] = message
+    if 'message' in progress:
+      self._progress[ key ][ 'message' ] = _Text( progress[ 'message' ] )
 
     if 'percentage' in progress:
       percentage = _Percentage( progress.get( 'percentage' ) )
@@ -81,7 +80,7 @@ class WorkDoneProgressState:
     for progress in self._progress.values():
       parts = [ progress[ 'title' ], progress[ 'message' ] ]
       percentage = progress[ 'percentage' ]
-      if percentage:
+      if percentage is not None:
         parts.append( f'{ percentage }%' )
       items.append( ' '.join( part for part in parts if part ) )
     return items

@@ -66,6 +66,32 @@ class WorkDoneProgressStateTest( TestCase ):
     assert_that( state.Items(), empty() )
 
 
+  def test_WorkDoneProgressState_DisplaysZeroAndClearsMessage( self ):
+    state = WorkDoneProgressState()
+    state.Update( {
+      'server': 'clangd',
+      'connection_generation': 1,
+      'token': 'index',
+      'kind': 'begin',
+      'title': 'Indexing',
+      'message': 'Loading files',
+      'percentage': 0,
+    } )
+
+    assert_that( state.Items(), contains_exactly(
+      'Indexing Loading files 0%' ) )
+
+    state.Update( {
+      'server': 'clangd',
+      'connection_generation': 1,
+      'token': 'index',
+      'kind': 'report',
+      'message': '',
+    } )
+
+    assert_that( state.Items(), contains_exactly( 'Indexing 0%' ) )
+
+
   def test_WorkDoneProgressState_ConcurrentProgress( self ):
     state = WorkDoneProgressState()
     state.Update( {
