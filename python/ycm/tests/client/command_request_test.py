@@ -21,7 +21,7 @@ MockVimModule()
 import json
 from hamcrest import assert_that
 from unittest import TestCase
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 from ycm.client.command_request import CommandRequest
 
 
@@ -175,6 +175,23 @@ class GoToResponse_QuickFixTest( TestCase ):
 
 
 class Response_Detection_Test( TestCase ):
+  def test_WorkDoneProgressCleanup_Response( self ):
+    response = {
+      'work_done_progress_cleanup': {
+        'server': 'clangd',
+        'connection_generation': 7,
+      }
+    }
+    response_handler = MagicMock()
+    request = CommandRequest( [ 'StopServer' ],
+                              response_handler = response_handler )
+    request._response_future = MagicMock()
+
+    with patch.object( request, 'HandleFuture', return_value = response ):
+      request.RunPostCommandActionsIfNeeded( '' )
+
+    response_handler.assert_called_once_with( response )
+
 
   def test_BasicResponse( self ):
     def _BasicResponseTest( command, response ):

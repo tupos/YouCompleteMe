@@ -25,6 +25,7 @@ endfunction
 function! Test_WorkDoneProgress_Status()
   py3 ycm_state.UpdateWorkDoneProgress( {
         \ 'server': 'clangd',
+        \ 'connection_generation': 1,
         \ 'token': 'index',
         \ 'kind': 'begin',
         \ 'title': 'Indexing',
@@ -42,6 +43,7 @@ function! Test_WorkDoneProgress_Status()
 
   py3 ycm_state.UpdateWorkDoneProgress( {
         \ 'server': 'clangd',
+        \ 'connection_generation': 1,
         \ 'token': 'index',
         \ 'kind': 'end' } )
   call youcompleteme#Test_UpdateWorkDoneProgress()
@@ -56,6 +58,7 @@ endfunction
 function! Test_WorkDoneProgress_Animation()
   py3 ycm_state.UpdateWorkDoneProgress( {
         \ 'server': 'clangd',
+        \ 'connection_generation': 1,
         \ 'token': 'index',
         \ 'kind': 'begin',
         \ 'title': 'Indexing' } )
@@ -68,7 +71,33 @@ function! Test_WorkDoneProgress_Animation()
 
   py3 ycm_state.UpdateWorkDoneProgress( {
         \ 'server': 'clangd',
+        \ 'connection_generation': 1,
         \ 'token': 'index',
         \ 'kind': 'end' } )
   call youcompleteme#Test_UpdateWorkDoneProgress()
+endfunction
+
+
+function! Test_WorkDoneProgress_Cleanup()
+  py3 ycm_state.UpdateWorkDoneProgress( {
+        \ 'server': 'clangd',
+        \ 'connection_generation': 1,
+        \ 'token': 'index',
+        \ 'kind': 'begin',
+        \ 'title': 'Indexing' } )
+  call youcompleteme#Test_UpdateWorkDoneProgress()
+
+  call assert_equal( '⠋ Indexing', youcompleteme#GetStatus() )
+  call assert_true(
+        \ youcompleteme#Test_GetPollers().work_done_progress.id >= 0 )
+
+  py3 ycm_state.ClearWorkDoneProgress( {
+        \ 'server': 'clangd',
+        \ 'connection_generation': 1 } )
+  call youcompleteme#Test_UpdateWorkDoneProgress()
+
+  call assert_equal( '', youcompleteme#GetStatus() )
+  call assert_equal(
+        \ -1,
+        \ youcompleteme#Test_GetPollers().work_done_progress.id )
 endfunction

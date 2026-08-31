@@ -209,3 +209,22 @@ class WorkDoneProgressStateTest( TestCase ):
     } )
 
     assert_that( state.Items(), contains_exactly( 'Indexing' ) )
+
+
+  def test_WorkDoneProgressState_IgnoresInvalidGenerationCleanup( self ):
+    state = WorkDoneProgressState()
+    state.Update( {
+      'server': 'clangd',
+      'connection_generation': 7,
+      'token': 'index',
+      'kind': 'begin',
+      'title': 'Indexing',
+    } )
+
+    for server, connection_generation in (
+        ( None, 7 ),
+        ( 'clangd', True ),
+        ( 'clangd', 0 ) ):
+      state.ClearForServerGeneration( server, connection_generation )
+
+    assert_that( state.Items(), contains_exactly( 'Indexing' ) )

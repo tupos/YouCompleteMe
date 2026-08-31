@@ -88,8 +88,14 @@ class WorkDoneProgressState:
 
 
   def ClearForServerGeneration( self,
-                                server: str,
-                                connection_generation: int ) -> None:
+                                server: object,
+                                connection_generation: object ) -> None:
+    if ( not isinstance( server, str ) or
+         not isinstance( connection_generation, int ) or
+         isinstance( connection_generation, bool ) or
+         connection_generation <= 0 ):
+      return
+
     last_cleared_generation = max(
       connection_generation,
       self._cleared_connection_generations.get( server, 0 ) )

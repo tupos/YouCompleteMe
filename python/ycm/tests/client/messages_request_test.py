@@ -118,6 +118,19 @@ class MessagesRequestTest( TestCase ):
     ] )
 
 
+  def test_HandlePollResponse_WorkDoneProgressCleanup( self ):
+    message_handler = ExtendedMock()
+    cleanup = {
+      'server': 'clangd',
+      'connection_generation': 7,
+    }
+
+    assert_that( _HandlePollResponse(
+      [ { 'work_done_progress_cleanup': cleanup } ], message_handler ),
+      equal_to( True ) )
+    message_handler.ClearWorkDoneProgress.assert_called_once_with( cleanup )
+
+
   @patch( 'ycm.client.messages_request.PostVimMessage',
           new_callable = ExtendedMock )
   def test_HandlePollResponse_MultipleMessagesAndDiagnostics(

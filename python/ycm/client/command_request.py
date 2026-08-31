@@ -15,12 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import Callable, TypeAlias
+
 from ycm.client.base_request import ( BaseRequest,
                                       BuildRequestData,
                                       BuildRequestDataForLocation )
 from ycm import vimsupport
 
 DEFAULT_BUFFER_COMMAND = 'same-buffer'
+CommandResponseHandler: TypeAlias = Callable[ [ object ], None ]
 
 
 def _EnsureBackwardsCompatibility( arguments ):
@@ -34,7 +37,8 @@ class CommandRequest( BaseRequest ):
                 arguments,
                 extra_data = None,
                 silent = False,
-                location = None ):
+                location = None,
+                response_handler: CommandResponseHandler | None = None ):
     super( CommandRequest, self ).__init__()
     self._arguments = _EnsureBackwardsCompatibility( arguments )
     self._command = arguments and arguments[ 0 ]
@@ -45,6 +49,7 @@ class CommandRequest( BaseRequest ):
     self._silent = silent
     self._bufnr = extra_data.pop( 'bufnr', None ) if extra_data else None
     self._location = location
+    self._response_handler: CommandResponseHandler | None = response_handler
 
 
   def Start( self ):
@@ -74,6 +79,8 @@ class CommandRequest( BaseRequest ):
       # Block
       self._response = self.HandleFuture( self._response_future,
                                           display_message = not self._silent )
+      if self._response_handler:
+        self._response_handler( self._response )
 
     return self._response
 
@@ -103,6 +110,9 @@ class CommandRequest( BaseRequest ):
 
     if 'detailed_info' in self._response:
       return self._HandleDetailedInfoResponse( modifiers )
+
+    if 'work_done_progress_cleanup' in self._response:
+      return
 
     # The only other type of response we understand is GoTo, and that is the
     # only one that we can't detect just by inspecting the response (it should
@@ -218,11 +228,14 @@ class CommandRequest( BaseRequest ):
 def SendCommandRequestAsync( arguments,
                              extra_data = None,
                              silent = True,
-                             location = None ):
+                             location = None,
+                             response_handler:
+                             CommandResponseHandler | None = None ):
   request = CommandRequest( arguments,
                             extra_data = extra_data,
                             silent = silent,
-                            location = location )
+                            location = location,
+                            response_handler = response_handler )
   request.Start()
   # Don't block
   return request
@@ -232,20 +245,27 @@ def SendCommandRequest( arguments,
                         modifiers,
                         buffer_command = DEFAULT_BUFFER_COMMAND,
                         extra_data = None,
-                        skip_post_command_action = False ):
+                        skip_post_command_action = False,
+                        response_handler:
+                        CommandResponseHandler | None = None ):
   request = SendCommandRequestAsync( arguments,
                                      extra_data = extra_data,
-                                     silent = False )
+                                     silent = False,
+                                     response_handler = response_handler )
   # Block here to get the response
   if not skip_post_command_action:
     request.RunPostCommandActionsIfNeeded( modifiers, buffer_command )
   return request.Response()
 
 
-def GetCommandResponse( arguments, extra_data = None ):
+def GetCommandResponse(
+    arguments,
+    extra_data = None,
+    response_handler: CommandResponseHandler | None = None ):
   request = SendCommandRequestAsync( arguments,
                                      extra_data = extra_data,
-                                     silent = True )
+                                     silent = True,
+                                     response_handler = response_handler )
   # Block here to get the response
   return request.StringResponse()
 

@@ -1537,7 +1537,10 @@ function! youcompleteme#GetCommandResponse( ... ) abort
     return ''
   endif
 
-  return py3eval( 'ycm_state.GetCommandResponse( vim.eval( "a:000" ) )' )
+  let response = py3eval(
+        \ 'ycm_state.GetCommandResponse( vim.eval( "a:000" ) )' )
+  call s:UpdateWorkDoneProgress()
+  return response
 endfunction
 
 
@@ -1630,6 +1633,7 @@ function! s:PollCommands( timer_id ) abort
     py3 ycm_state.FlushCommandRequest( int( vim.eval( "request_id" ) ) )
     call request[ 'callback' ]( result )
   endfor
+  call s:UpdateWorkDoneProgress()
 
   if poll_again && s:pollers.command.id == -1
     let s:pollers.command.id = timer_start( s:pollers.command.wait_milliseconds,
@@ -1645,6 +1649,7 @@ function! s:CompleterCommand( mods, count, line1, line2, ... )
         \ vimsupport.GetBoolValue( 'a:count != -1' ),
         \ vimsupport.GetIntValue( 'a:line1' ),
         \ vimsupport.GetIntValue( 'a:line2' ) )
+  call s:UpdateWorkDoneProgress()
 endfunction
 
 

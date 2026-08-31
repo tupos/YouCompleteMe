@@ -475,7 +475,8 @@ class YouCompleteMe:
       final_arguments,
       modifiers,
       self._user_options[ 'goto_buffer_command' ],
-      extra_data )
+      extra_data,
+      response_handler = self._HandleCommandResponse )
 
 
   def GetCommandResponse( self, arguments ):
@@ -484,7 +485,10 @@ class YouCompleteMe:
       False,
       0,
       0 )
-    return GetCommandResponse( final_arguments, extra_data )
+    return GetCommandResponse(
+      final_arguments,
+      extra_data,
+      response_handler = self._HandleCommandResponse )
 
 
   def SendCommandRequestAsync( self,
@@ -503,7 +507,8 @@ class YouCompleteMe:
       final_arguments,
       extra_data,
       silent,
-      location = location )
+      location = location,
+      response_handler = self._HandleCommandResponse )
     return request_id
 
 
@@ -744,6 +749,20 @@ class YouCompleteMe:
 
   def UpdateWorkDoneProgress( self, progress ):
     self._work_done_progress.Update( progress )
+
+
+  def ClearWorkDoneProgress( self, cleanup: object ) -> None:
+    if not isinstance( cleanup, dict ):
+      return
+    self._work_done_progress.ClearForServerGeneration(
+      cleanup.get( 'server' ),
+      cleanup.get( 'connection_generation' ) )
+
+
+  def _HandleCommandResponse( self, response: object ) -> None:
+    if isinstance( response, dict ):
+      self.ClearWorkDoneProgress(
+        response.get( 'work_done_progress_cleanup' ) )
 
 
   def GetWorkDoneProgress( self ):

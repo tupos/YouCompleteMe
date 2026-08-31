@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import Protocol
+
 from ycm.client.base_request import BaseRequest, BuildRequestData
 from ycm.vimsupport import PostVimMessage
 
@@ -24,6 +26,22 @@ _logger = logging.getLogger( __name__ )
 
 # Looooong poll
 TIMEOUT_SECONDS = 60
+
+
+class MessageHandler( Protocol ):
+  def UpdateWithNewDiagnosticsForFile(
+      self,
+      filepath: str,
+      diagnostics: object ) -> None:
+    ...
+
+
+  def UpdateWorkDoneProgress( self, progress: object ) -> None:
+    ...
+
+
+  def ClearWorkDoneProgress( self, cleanup: object ) -> None:
+    ...
 
 
 class MessagesPoll( BaseRequest ):
@@ -41,7 +59,7 @@ class MessagesPoll( BaseRequest ):
     return
 
 
-  def Poll( self, message_handler ):
+  def Poll( self, message_handler: MessageHandler ) -> bool:
     """This should be called regularly to check for new messages in this buffer.
     Returns True if Poll should be called again in a while. Returns False when
     the completer or server indicated that further polling should not be done
@@ -70,7 +88,8 @@ class MessagesPoll( BaseRequest ):
     return False
 
 
-def _HandlePollResponse( response, message_handler ):
+def _HandlePollResponse( response: object,
+                         message_handler: MessageHandler ) -> bool:
   if isinstance( response, list ):
     for notification in response:
       if 'message' in notification:
@@ -84,6 +103,9 @@ def _HandlePollResponse( response, message_handler ):
       elif 'work_done_progress' in notification:
         message_handler.UpdateWorkDoneProgress(
           notification[ 'work_done_progress' ] )
+      elif 'work_done_progress_cleanup' in notification:
+        message_handler.ClearWorkDoneProgress(
+          notification[ 'work_done_progress_cleanup' ] )
   elif response is False:
     # Don't keep polling for this file
     return False

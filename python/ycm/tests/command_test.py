@@ -26,6 +26,26 @@ from ycm.tests import YouCompleteMeInstance
 
 
 class CommandTest( TestCase ):
+  @YouCompleteMeInstance()
+  def test_CommandResponse_CleansWorkDoneProgress( self, ycm ):
+    ycm.UpdateWorkDoneProgress( {
+      'server': 'clangd',
+      'connection_generation': 7,
+      'token': 'index',
+      'kind': 'begin',
+      'title': 'Indexing',
+    } )
+
+    ycm._HandleCommandResponse( {
+      'work_done_progress_cleanup': {
+        'server': 'clangd',
+        'connection_generation': 7,
+      }
+    } )
+
+    assert_that( ycm.GetWorkDoneProgress(), contains_exactly() )
+
+
   @YouCompleteMeInstance( { 'g:ycm_extra_conf_vim_data': [ 'tempname()' ] } )
   def test_SendCommandRequest_ExtraConfVimData_Works( self, ycm ):
     current_buffer = VimBuffer( 'buffer' )
@@ -103,6 +123,7 @@ class CommandTest( TestCase ):
               }
             }
           },
+          response_handler = ycm._HandleCommandResponse,
         )
 
 
@@ -136,6 +157,7 @@ class CommandTest( TestCase ):
               }
             }
           },
+          response_handler = ycm._HandleCommandResponse,
         )
 
 
@@ -158,8 +180,10 @@ class CommandTest( TestCase ):
 
       with patch( 'ycm.youcompleteme.SendCommandRequest' ) as send_request:
         ycm.SendCommandRequest( [ 'ft=python', 'GoTo' ], '', False, 1, 1 )
-        send_request.assert_called_once_with( *expected_args )
+        send_request.assert_called_once_with(
+          *expected_args, response_handler = ycm._HandleCommandResponse )
 
       with patch( 'ycm.youcompleteme.SendCommandRequest' ) as send_request:
         ycm.SendCommandRequest( [ 'GoTo', 'ft=python' ], '', False, 1, 1 )
-        send_request.assert_called_once_with( *expected_args )
+        send_request.assert_called_once_with(
+          *expected_args, response_handler = ycm._HandleCommandResponse )
