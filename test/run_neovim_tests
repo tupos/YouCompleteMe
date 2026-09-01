@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+
+if [ "$1" == "--help" ]; then
+  echo "$(basename "$0") <optional list of tests in form file:func>"
+  echo "e.g.:"
+  echo " - run all tests: $0"
+  echo " - run a test script: $0 neovim/hover.test.vim"
+  echo " - run a test function: $0 neovim/hover.test.vim:Test_Name"
+  exit 0
+elif [ "$1" == "--stdout" ]; then
+  export YCM_TEST_STDOUT=1
+  shift
+fi
+
+NEOVIM=nvim
+if [ "$1" == "--neovim" ]; then
+  NEOVIM=$2
+  shift
+  shift
+fi
+
+pushd "$(dirname "$0")" > /dev/null || exit 1
+
+echo "Running YouCompleteMe Neovim tests"
+
+RESULT=0
+TESTS=( "$@" )
+if [ ${#TESTS[@]} -eq 0 ]; then
+  TESTS=( neovim/*.test.vim )
+fi
+
+NEOVIM_TEST_DIRECTORY=$(mktemp -d) || exit 1
+trap 'rm -rf "$NEOVIM_TEST_DIRECTORY"' EXIT
+mkdir -p "$NEOVIM_TEST_DIRECTORY/cache"
+mkdir -p "$NEOVIM_TEST_DIRECTORY/state"
+
+for test_spec in "${TESTS[@]}"; do
+  echo ""
+  echo "%RUN: $test_spec"
+
+  IFS=: read -r test_file test_filter <<< "$test_spec"
+  if [[ "$test_file" != neovim/*.test.vim ||
+        "$test_file" == *..* ]]; then
+    echo "%FAIL: invalid Neovim test path: $test_file"
+    RESULT=1
+    continue
+  fi
+
+  result_file="${test_file}.res"
+  rm -f "$result_file"
+
+  command=(
+    "$NEOVIM"
+    --clean
+    --headless
+    -u NONE
+    -S lib/run_neovim_test.vim
+    --cmd 'au SwapExists * let v:swapchoice = "e"'
+    "$test_file"
+  )
+  if [ -n "$test_filter" ]; then
+    command+=( "$test_filter" )
+  fi
+
+  if XDG_CACHE_HOME="$NEOVIM_TEST_DIRECTORY/cache" \
+     XDG_STATE_HOME="$NEOVIM_TEST_DIRECTORY/state" \
+     NVIM_LOG_FILE="$NEOVIM_TEST_DIRECTORY/neovim.log" \
+     "${command[@]}" && [ -f "$result_file" ]; then
+    echo "%PASS: $test_spec PASSED"
+  else
+    echo "%FAIL: $test_spec FAILED"
+    RESULT=1
+  fi
+
+  test_log_directory="$(pwd)/logs/${test_file}"
+  rm -rf "$test_log_directory"
+  mkdir -p "$test_log_directory"
+  "$NEOVIM" --version > "${test_log_directory}/neovimversion"
+  for log in messages test.log; do
+    if [ -f "$log" ]; then
+      if [ "$YCM_TEST_STDOUT" ]; then
+        echo ""
+        echo "*** START: $log ***"
+        cat "$log"
+        echo "*** END: $log ***"
+      fi
+      mv "$log" "$test_log_directory"
+    fi
+  done
+
+  rm -f "$result_file"
+done
+
+echo "Done running tests"
+
+popd > /dev/null || exit 1
+
+echo ""
+echo "All done."
+
+exit $RESULT

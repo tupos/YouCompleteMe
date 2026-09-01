@@ -792,10 +792,12 @@ function! s:EnableAutoHover()
       autocmd! * <buffer>
       autocmd CursorHold <buffer> call s:Hover()
       if exists( '##WinResized' )
-        autocmd WinResized <buffer> call popup_close( s:cursorhold_popup )
+        autocmd WinResized <buffer>
+              \ call youcompleteme#hover#Close( s:cursorhold_popup )
       endif
       if exists( '##WinScrolled' )
-        autocmd WinScrolled <buffer> call popup_close( s:cursorhold_popup )
+        autocmd WinScrolled <buffer>
+              \ call youcompleteme#hover#Close( s:cursorhold_popup )
       endif
     augroup END
   endif
@@ -1699,7 +1701,7 @@ function! s:ForceCompileAndDiagnostics()
 endfunction
 
 
-if exists( '*popup_atcursor' )
+if youcompleteme#hover#Supported()
   function s:Hover()
     if !py3eval( 'ycm_state.NativeFiletypeCompletionUsable()' )
       " Cancel the autocommand if it happens to have been set
@@ -1733,7 +1735,7 @@ if exists( '*popup_atcursor' )
       return
     endif
 
-    if empty( popup_getpos( s:cursorhold_popup ) )
+    if !youcompleteme#hover#IsVisible( s:cursorhold_popup )
       call s:GetCommandResponseAsyncImpl(
             \ function( 's:ShowHoverResult' ),
             \ 'autohover',
@@ -1743,57 +1745,24 @@ if exists( '*popup_atcursor' )
 
 
   function! s:ShowHoverResult( response )
-    call popup_hide( s:cursorhold_popup )
+    call youcompleteme#hover#Hide( s:cursorhold_popup )
 
     if empty( a:response ) || !exists( 'b:ycm_hover' )
       return
     endif
 
-    " Try to position the popup at the cursor, but avoid wrapping. If the
-    " longest line is > screen width (&columns), then we just have to wrap, and
-    " place the popup at the leftmost column.
-    "
-    " Find the longest line (FIXME: probably doesn't work well for multi-byte)
     let lines = split( a:response, "\n" )
-    let len = max( map( copy( lines ), "len( v:val )" ) )
-
-    let wrap = 0
-    let col = 'cursor'
-
-    " max width is screen columns minus x padding (2)
-    if len >= (&columns - 2)
-      " There's at least one line > our max - enable word wrap and draw the
-      " popup at the leftmost column
-      let col = 1
-      let wrap = 1
-    endif
-
-    let popup_params = {
-          \ 'col': col,
-          \ 'wrap': wrap,
-          \ 'padding': [ 0, 1, 0, 1 ],
-          \ 'moved': 'word',
-          \ 'maxwidth': &columns,
-          \ 'close': 'click',
-          \ 'fixed': 0,
-          \ }
-
-    if has_key( b:ycm_hover, 'popup_params' )
-      let popup_params = extend( copy( popup_params ),
-                               \ b:ycm_hover.popup_params )
-    endif
-
-    let s:cursorhold_popup = popup_atcursor( lines, popup_params )
-    call setbufvar( winbufnr( s:cursorhold_popup ),
-                            \ '&syntax',
-                            \ b:ycm_hover.syntax )
+    let popup_params = get( b:ycm_hover, 'popup_params', {} )
+    let s:cursorhold_popup = youcompleteme#hover#Show(
+          \ lines,
+          \ b:ycm_hover.syntax,
+          \ popup_params )
   endfunction
 
 
   function! s:ToggleHover()
-    let pos = popup_getpos( s:cursorhold_popup )
-    if !empty( pos ) && pos.visible
-      call popup_hide( s:cursorhold_popup )
+    if youcompleteme#hover#IsVisible( s:cursorhold_popup )
+      call youcompleteme#hover#Hide( s:cursorhold_popup )
       let s:cursorhold_popup = -1
 
       " Disable the auto-trigger until the next cursor movement.

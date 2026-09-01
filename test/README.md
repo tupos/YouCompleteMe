@@ -33,6 +33,26 @@ in which you can run the tests.
 * Install the test python deps (`pip install -r python/test_requirements.txt`)
 * Run `./test/run_vim_tests`
 
+## Running the Neovim tests
+
+Neovim-specific tests use the same `Test_*` function and built-in assertion
+structure as the Vim tests, but have a separate runner because the editors
+require different command-line options and test facilities.
+
+Run all Neovim tests with:
+
+```
+./test/run_neovim_tests
+```
+
+An individual script or test function can be selected in the same way as with
+`run_vim_tests`:
+
+```
+./test/run_neovim_tests neovim/hover.test.vim
+./test/run_neovim_tests neovim/hover.test.vim:Test_Neovim_Hover_Popup_Interface
+```
+
 ## Running the tests in Windows (WSL)
 
 NOTE: This environment isn't officially supported, and the preferred mechanism to run the tests is to use docker.

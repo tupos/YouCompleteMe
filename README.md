@@ -169,7 +169,7 @@ number of languages, including:
   variables, functions etc.,
 - displaying documentation for methods, members, etc. in the [preview
   window](#the-getdoc-subcommand), or in a
-  [popup next to the cursor](#the-gycm_auto_hover-option) (Vim only)
+  [popup next to the cursor](#the-gycm_auto_hover-option)
 - [fixing common coding errors](#the-fixit-subcommand), like missing
   semi-colons, typos, etc.,
 - [semantic renaming](#the-refactorrename-subcommand) of variables across files,
@@ -3040,7 +3040,8 @@ let g:ycm_echo_current_diagnostic = 'virtual-text'
 ### The `g:ycm_auto_hover` option
 
 This option controls whether or not YCM shows documentation in a popup at the
-cursor location after a short delay. Only supported in Vim.
+cursor location after a short delay. YCM uses a popup window in Vim and a
+floating window in Neovim.
 
 When this option is set to `'CursorHold'`, the popup is displayed on the
 `CursorHold` autocommand. See `:help CursorHold` for the details, but this means
@@ -3071,7 +3072,8 @@ buffer-local variable can be set to a dictionary with the following keys:
 * `command`: The YCM completer subcommand which should be run on hover
 * `syntax`: The syntax to use (as in `set syntax=`) in the popup window for
   highlighting.
-* `popup_params`: The params passed to a popup window which gets opened.
+* `popup_params`: Editor-specific parameters passed to the popup or
+  floating-window implementation.
 
 For example, to use C/C++ syntax highlighting in the popup for C-family
 languages, add something like this to your vimrc:
@@ -3103,7 +3105,10 @@ augroup MyYCMCustom
     \ }
 augroup END
 ```
-See `:help popup_create-arguments` for the list of available popup window options.
+In Vim, these parameters are passed to `popup_atcursor()`. In Neovim,
+supported parameters are passed to `vim.lsp.util.open_floating_preview()`. The
+Vim `maxwidth` and `maxheight` names are accepted as aliases for Neovim's
+`max_width` and `max_height` options.
 
 Default: `'CursorHold'`
 
