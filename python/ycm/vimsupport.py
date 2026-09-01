@@ -264,6 +264,27 @@ def GetSignsInBuffer( buffer_number ):
   )[ 0 ][ 'signs' ]
 
 
+def AddTextPropertyType( name: str, **kwargs: object ) -> None:
+  properties: dict[ str, object ] = {
+    'highlight': 'Ignore',
+    'combine': 0,
+    'override': 0,
+    'start_incl': 0,
+    'end_incl': 0,
+    'priority': 10
+  }
+  properties.update( kwargs )
+
+  vim.eval(
+    f"prop_type_add( '{ EscapeForVim( name ) }', "
+    f"               { json.dumps( properties ) } )"
+  )
+
+
+def GetTextPropertyTypes() -> list[ str ]:
+  return [ ToUnicode( prop ) for prop in vim.eval( 'prop_type_list()' ) ]
+
+
 class DiagnosticProperty( namedtuple( 'DiagnosticProperty', [ 'id',
                                                               'type',
                                                               'line',
@@ -371,6 +392,72 @@ def AddTextProperty( buffer_number,
                                               f'{ line }, '
                                               f'{ column }, '
                                               f'{ extra_args } )' )
+
+
+def AddTextPropertyForRange(
+    buffer_number: int,
+    prop_id: int | None,
+    prop_type: str,
+    property_range: dict[ str, dict[ str, object ] ],
+    extra_args: dict[ str, object ] | None = None ) -> int:
+  properties: dict[ str, object ] = dict( extra_args or {} )
+  if prop_id is not None:
+    properties[ 'id' ] = prop_id
+
+  if 'end' in property_range:
+    properties.update( {
+      'end_lnum': property_range[ 'end' ][ 'line_num' ],
+      'end_col': property_range[ 'end' ][ 'column_num' ],
+    } )
+
+  start = property_range[ 'start' ]
+  return AddTextProperty(
+    buffer_number,
+    int( start[ 'line_num' ] ),
+    int( start[ 'column_num' ] ),
+    prop_type,
+    properties
+  )
+
+
+def ClearTextProperties(
+    buffer_number: int,
+    prop_id: int | None = None,
+    prop_types: list[ str ] | str | None = None,
+    first_line: int | None = None,
+    last_line: int | None = None ) -> int:
+  properties: dict[ str, object ] = {
+    'bufnr': buffer_number,
+    'all': 1,
+  }
+  if prop_id is not None:
+    properties[ 'id' ] = prop_id
+
+  if prop_id is not None and prop_types is not None:
+    properties[ 'both' ] = 1
+
+  def RemoveProperties() -> int:
+    if last_line is not None:
+      return GetIntValue(
+        f'prop_remove( { json.dumps( properties ) },'
+        f' { first_line },'
+        f' { last_line } )'
+      )
+    if first_line is not None:
+      return GetIntValue(
+        f'prop_remove( { json.dumps( properties ) },'
+        f' { first_line } )'
+      )
+    return GetIntValue(
+      f'prop_remove( { json.dumps( properties ) } )'
+    )
+
+  if prop_types is not None:
+    properties[ 'types' ] = (
+      prop_types if isinstance( prop_types, list ) else [ prop_types ]
+    )
+
+  return RemoveProperties()
 
 
 def RemoveDiagnosticProperty( buffer_number: int, prop: DiagnosticProperty ):

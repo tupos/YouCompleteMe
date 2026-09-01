@@ -19,39 +19,38 @@
 from ycm.client.inlay_hints_request import InlayHintsRequest
 from ycm.client.base_request import BuildRequestData
 from ycm import vimsupport
-from ycm import text_properties as tp
 from ycm import scrolling_range as sr
 
 
-HIGHLIGHT_GROUP = {
+HIGHLIGHT_GROUP: dict[ str, str ] = {
   'Type':      'YcmInlayHint',
   'Parameter': 'YcmInlayHint',
   'Enum':      'YcmInlayHint',
 }
-REPORTED_MISSING_TYPES = set()
+REPORTED_MISSING_TYPES: set[ str ] = set()
 
 
-def Initialise():
+def Initialise() -> bool:
   if vimsupport.VimIsNeovim():
     return False
 
-  props = tp.GetTextPropertyTypes()
+  props = vimsupport.GetTextPropertyTypes()
   if 'YCM_INLAY_UNKNOWN' not in props:
-    tp.AddTextPropertyType( 'YCM_INLAY_UNKNOWN',
-                            highlight = 'YcmInlayHint',
-                            start_incl = 1 )
+    vimsupport.AddTextPropertyType( 'YCM_INLAY_UNKNOWN',
+                                    highlight = 'YcmInlayHint',
+                                    start_incl = 1 )
   if 'YCM_INLAY_PADDING' not in props:
-    tp.AddTextPropertyType( 'YCM_INLAY_PADDING',
-                            highlight = 'YcmInvisible',
-                            start_incl = 1 )
+    vimsupport.AddTextPropertyType( 'YCM_INLAY_PADDING',
+                                    highlight = 'YcmInvisible',
+                                    start_incl = 1 )
 
   for token_type, group in HIGHLIGHT_GROUP.items():
     prop = f'YCM_INLAY_{ token_type }'
     if prop not in props and vimsupport.GetIntValue(
         f"hlexists( '{ vimsupport.EscapeForVim( group ) }' )" ):
-      tp.AddTextPropertyType( prop,
-                              highlight = group,
-                              start_incl = 1 )
+      vimsupport.AddTextPropertyType( prop,
+                                      highlight = group,
+                                      start_incl = 1 )
 
   return True
 
@@ -60,21 +59,27 @@ class InlayHints( sr.ScrollingBufferRange ):
   """Stores the inlay hints state for a Vim buffer"""
 
 
-  def _NewRequest( self, request_range ):
-    request_data = BuildRequestData( self._bufnr )
+  def _NewRequest(
+      self,
+      request_range: dict[ str, dict[ str, object ] ]
+  ) -> InlayHintsRequest:
+    request_data: dict[ str, object ] = BuildRequestData( self._bufnr )
     request_data[ 'range' ] = request_range
     return InlayHintsRequest( request_data )
 
 
-  def Clear( self ):
-    types = [ 'YCM_INLAY_UNKNOWN', 'YCM_INLAY_PADDING' ] + [
+  def Clear( self ) -> None:
+    prop_types: list[ str ] = [
+      'YCM_INLAY_UNKNOWN', 'YCM_INLAY_PADDING'
+    ] + [
       f'YCM_INLAY_{ prop_type }' for prop_type in HIGHLIGHT_GROUP.keys()
     ]
 
-    tp.ClearTextProperties( self._bufnr, prop_types = types )
+    vimsupport.ClearTextProperties(
+      self._bufnr, prop_types = prop_types )
 
 
-  def _Draw( self ):
+  def _Draw( self ) -> None:
     self.Clear()
 
     for inlay_hint in self._latest_response:
@@ -95,33 +100,36 @@ class InlayHints( sr.ScrollingBufferRange ):
       } )
 
       if inlay_hint.get( 'paddingLeft', False ):
-        tp.AddTextProperty( self._bufnr,
-                            None,
-                            'YCM_INLAY_PADDING',
-                            {
-                              'start': inlay_hint[ 'position' ],
-                            },
-                            {
-                              'text': ' '
-                            } )
+        vimsupport.AddTextPropertyForRange(
+          self._bufnr,
+          None,
+          'YCM_INLAY_PADDING',
+          {
+            'start': inlay_hint[ 'position' ],
+          },
+          {
+            'text': ' '
+          } )
 
-      tp.AddTextProperty( self._bufnr,
-                          None,
-                          prop_type,
-                          {
-                            'start': inlay_hint[ 'position' ],
-                          },
-                          {
-                            'text': inlay_hint[ 'label' ]
-                          } )
+      vimsupport.AddTextPropertyForRange(
+        self._bufnr,
+        None,
+        prop_type,
+        {
+          'start': inlay_hint[ 'position' ],
+        },
+        {
+          'text': inlay_hint[ 'label' ]
+        } )
 
       if inlay_hint.get( 'paddingRight', False ):
-        tp.AddTextProperty( self._bufnr,
-                            None,
-                            'YCM_INLAY_PADDING',
-                            {
-                              'start': inlay_hint[ 'position' ],
-                            },
-                            {
-                              'text': ' '
-                            } )
+        vimsupport.AddTextPropertyForRange(
+          self._bufnr,
+          None,
+          'YCM_INLAY_PADDING',
+          {
+            'start': inlay_hint[ 'position' ],
+          },
+          {
+            'text': ' '
+          } )

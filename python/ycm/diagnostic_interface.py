@@ -18,7 +18,6 @@
 from collections import defaultdict
 from ycm import vimsupport
 from ycm.diagnostic_filter import DiagnosticFilter, CompileLevel
-from ycm import text_properties as tp
 import vim
 YCM_VIM_PROPERTY_ID = 1
 
@@ -129,16 +128,21 @@ class DiagnosticInterface:
     self._EchoDiagnosticText( line_num, first_diag, text )
 
 
-  def _ClearCurrentDiagnostic( self, will_be_replaced=False ):
+  def _ClearCurrentDiagnostic(
+      self,
+      will_be_replaced: bool = False ) -> None:
     if not self._diag_message_needs_clearing:
       return
 
     if ( not vimsupport.VimIsNeovim() and
          self._user_options[ 'echo_current_diagnostic' ] == 'virtual-text' ):
-      tp.ClearTextProperties( self._bufnr,
-                              prop_types = [ 'YcmVirtDiagPadding',
-                                             'YcmVirtDiagError',
-                                             'YcmVirtDiagWarning' ] )
+      vimsupport.ClearTextProperties(
+        self._bufnr,
+        prop_types = [
+          'YcmVirtDiagPadding',
+          'YcmVirtDiagError',
+          'YcmVirtDiagWarning'
+        ] )
     else:
       if not will_be_replaced:
         vimsupport.PostVimMessage( '', warning = False )

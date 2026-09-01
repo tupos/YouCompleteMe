@@ -19,13 +19,12 @@
 from ycm.client.semantic_tokens_request import SemanticTokensRequest
 from ycm.client.base_request import BuildRequestData
 from ycm import vimsupport
-from ycm import text_properties as tp
 from ycm import scrolling_range as sr
 
 import vim
 
 
-HIGHLIGHT_GROUP = {
+HIGHLIGHT_GROUP: dict[ str, str ] = {
   'namespace': 'Type',
   'type': 'Type',
   'class': 'Structure',
@@ -59,33 +58,33 @@ HIGHLIGHT_GROUP = {
   # These are not part of the spec, but are used by jdt.ls
   'annotation': 'Macro',
 }
-REPORTED_MISSING_TYPES = set()
+REPORTED_MISSING_TYPES: set[ str ] = set()
 
 
-def Initialise():
+def Initialise() -> None:
   if vimsupport.VimIsNeovim():
     return
 
-  props = tp.GetTextPropertyTypes()
+  props = vimsupport.GetTextPropertyTypes()
   if 'YCM_HL_UNKNOWN' not in props:
-    tp.AddTextPropertyType( 'YCM_HL_UNKNOWN',
-                            highlight = 'WarningMsg',
-                            priority = 0 )
+    vimsupport.AddTextPropertyType( 'YCM_HL_UNKNOWN',
+                                    highlight = 'WarningMsg',
+                                    priority = 0 )
 
   for token_type, group in HIGHLIGHT_GROUP.items():
     prop = f'YCM_HL_{ token_type }'
     if prop not in props and vimsupport.GetIntValue(
         f"hlexists( '{ vimsupport.EscapeForVim( group ) }' )" ):
-      tp.AddTextPropertyType( prop,
-                              highlight = group,
-                              priority = 0 )
+      vimsupport.AddTextPropertyType( prop,
+                                      highlight = group,
+                                      priority = 0 )
 
 
 # "arbitrary" base id
-NEXT_TEXT_PROP_ID = 70784
+NEXT_TEXT_PROP_ID: int = 70784
 
 
-def NextPropID():
+def NextPropID() -> int:
   global NEXT_TEXT_PROP_ID
   try:
     return NEXT_TEXT_PROP_ID
@@ -97,18 +96,21 @@ def NextPropID():
 class SemanticHighlighting( sr.ScrollingBufferRange ):
   """Stores the semantic highlighting state for a Vim buffer"""
 
-  def __init__( self, bufnr ):
+  def __init__( self, bufnr: int ) -> None:
     self._prop_id = NextPropID()
     super().__init__( bufnr )
 
 
-  def _NewRequest( self, request_range ):
-    request: dict = BuildRequestData( self._bufnr )
+  def _NewRequest(
+      self,
+      request_range: dict[ str, dict[ str, object ] ]
+  ) -> SemanticTokensRequest:
+    request: dict[ str, object ] = BuildRequestData( self._bufnr )
     request[ 'range' ] = request_range
     return SemanticTokensRequest( request )
 
 
-  def _Draw( self ):
+  def _Draw( self ) -> None:
     # We requested a snapshot
     tokens = self._latest_response.get( 'tokens', [] )
 
@@ -121,7 +123,12 @@ class SemanticHighlighting( sr.ScrollingBufferRange ):
       self.GrowRangeIfNeeded( rng )
 
       try:
-        tp.AddTextProperty( self._bufnr, self._prop_id, prop_type, rng )
+        vimsupport.AddTextPropertyForRange(
+          self._bufnr,
+          self._prop_id,
+          prop_type,
+          rng
+        )
       except vim.error as e:
         if 'E971:' in str( e ): # Text property doesn't exist
           if token[ 'type' ] not in REPORTED_MISSING_TYPES:
@@ -133,4 +140,5 @@ class SemanticHighlighting( sr.ScrollingBufferRange ):
         else:
           raise e
 
-    tp.ClearTextProperties( self._bufnr, prop_id = prev_prop_id )
+    vimsupport.ClearTextProperties(
+      self._bufnr, prop_id = prev_prop_id )
