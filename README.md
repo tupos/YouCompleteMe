@@ -987,8 +987,8 @@ endfor
 
 ## Inlay hints
 
-**NOTE**: Highly experimental feature, requiring Vim 9.0.214 or later (not
-supported in NeoVim).
+**NOTE**: Highly experimental feature, requiring Vim 9.0.214 or later, or
+Neovim 0.10 or later.
 
 When `g:ycm_enable_inlay_hints` (globally) or `b:ycm_enable_inlay_hints` (for a
 specific buffer) is set to `1`, then YCM will insert inlay hints as supported by
@@ -1022,15 +1022,22 @@ override this, define the `YcmInlayHint` highlight yourself, e.g. in your
 hi link YcmInlayHint Comment
 ```
 
-Similar to semantic highlighting above, you can override specific highlighting
-for different inlay hint types by defining text properties named after the kind
-of inlay hint, for example:
+Similar to semantic highlighting above, you can override the highlight for
+specific inlay hint types. In Vim, define text properties named after the kind
+of inlay hint:
 
 ```viml
 call prop_type_add( 'YCM_INLAY_Type', #{ highlight: 'Comment' } )
 ```
 
-The list of inlay hint kinds can be found in `python/ycm/inlay_hints.py`
+In Neovim, define highlight groups with the same names:
+
+```viml
+hi link YCM_INLAY_Type Comment
+```
+
+Define these customizations before YCM is initialized. The list of inlay hint
+kinds can be found in `python/ycm/inlay_hints.py`.
 
 ### Options
 

@@ -18,8 +18,10 @@
 
 from ycm.client.inlay_hints_request import InlayHintsRequest
 from ycm.client.base_request import BuildRequestData
-from ycm import vimsupport
 from ycm import scrolling_range as sr
+from ycm.virtual_text import ( CreateVirtualTextRenderer,
+                               VirtualTextChunk,
+                               VirtualTextRenderer )
 
 
 HIGHLIGHT_GROUP: dict[ str, str ] = {
@@ -28,35 +30,40 @@ HIGHLIGHT_GROUP: dict[ str, str ] = {
   'Enum':      'YcmInlayHint',
 }
 REPORTED_MISSING_TYPES: set[ str ] = set()
+INLAY_HINT_HIGHLIGHT_GROUPS: dict[ str, str ] = {
+  'YCM_INLAY_UNKNOWN': 'YcmInlayHint',
+  'YCM_INLAY_PADDING': 'YcmInvisible',
+  **{
+    f'YCM_INLAY_{ token_type }': highlight_group
+    for token_type, highlight_group in HIGHLIGHT_GROUP.items()
+  }
+}
+INLAY_HINT_NAMESPACE: str = 'ycm_inlay_hints'
 
 
 def Initialise() -> bool:
-  if vimsupport.VimIsNeovim():
-    return False
-
-  props = vimsupport.GetTextPropertyTypes()
-  if 'YCM_INLAY_UNKNOWN' not in props:
-    vimsupport.AddTextPropertyType( 'YCM_INLAY_UNKNOWN',
-                                    highlight = 'YcmInlayHint',
-                                    start_incl = 1 )
-  if 'YCM_INLAY_PADDING' not in props:
-    vimsupport.AddTextPropertyType( 'YCM_INLAY_PADDING',
-                                    highlight = 'YcmInvisible',
-                                    start_incl = 1 )
-
-  for token_type, group in HIGHLIGHT_GROUP.items():
-    prop = f'YCM_INLAY_{ token_type }'
-    if prop not in props and vimsupport.GetIntValue(
-        f"hlexists( '{ vimsupport.EscapeForVim( group ) }' )" ):
-      vimsupport.AddTextPropertyType( prop,
-                                      highlight = group,
-                                      start_incl = 1 )
-
-  return True
+  return CreateVirtualTextRenderer(
+    INLAY_HINT_NAMESPACE,
+    INLAY_HINT_HIGHLIGHT_GROUPS
+  ).Initialise()
 
 
 class InlayHints( sr.ScrollingBufferRange ):
   """Stores the inlay hints state for a Vim buffer"""
+
+  def __init__(
+      self,
+      bufnr: int,
+      renderer: VirtualTextRenderer | None = None ) -> None:
+    super().__init__( bufnr )
+    self._renderer: VirtualTextRenderer = (
+      renderer
+      if renderer is not None
+      else CreateVirtualTextRenderer(
+        INLAY_HINT_NAMESPACE,
+        INLAY_HINT_HIGHLIGHT_GROUPS
+      )
+    )
 
 
   def _NewRequest(
@@ -69,14 +76,7 @@ class InlayHints( sr.ScrollingBufferRange ):
 
 
   def Clear( self ) -> None:
-    prop_types: list[ str ] = [
-      'YCM_INLAY_UNKNOWN', 'YCM_INLAY_PADDING'
-    ] + [
-      f'YCM_INLAY_{ prop_type }' for prop_type in HIGHLIGHT_GROUP.keys()
-    ]
-
-    vimsupport.ClearTextProperties(
-      self._bufnr, prop_types = prop_types )
+    self._renderer.Clear( self._bufnr )
 
 
   def _Draw( self ) -> None:
@@ -99,37 +99,19 @@ class InlayHints( sr.ScrollingBufferRange ):
         }
       } )
 
-      if inlay_hint.get( 'paddingLeft', False ):
-        vimsupport.AddTextPropertyForRange(
-          self._bufnr,
-          None,
-          'YCM_INLAY_PADDING',
-          {
-            'start': inlay_hint[ 'position' ],
-          },
-          {
-            'text': ' '
-          } )
+      chunks: list[ VirtualTextChunk ] = []
 
-      vimsupport.AddTextPropertyForRange(
-        self._bufnr,
-        None,
-        prop_type,
-        {
-          'start': inlay_hint[ 'position' ],
-        },
-        {
-          'text': inlay_hint[ 'label' ]
-        } )
+      if inlay_hint.get( 'paddingLeft', False ):
+        chunks.append( ( ' ', 'YCM_INLAY_PADDING' ) )
+
+      chunks.append( ( inlay_hint[ 'label' ], prop_type ) )
 
       if inlay_hint.get( 'paddingRight', False ):
-        vimsupport.AddTextPropertyForRange(
-          self._bufnr,
-          None,
-          'YCM_INLAY_PADDING',
-          {
-            'start': inlay_hint[ 'position' ],
-          },
-          {
-            'text': ' '
-          } )
+        chunks.append( ( ' ', 'YCM_INLAY_PADDING' ) )
+
+      self._renderer.Render(
+        self._bufnr,
+        int( inlay_hint[ 'position' ][ 'line_num' ] ),
+        int( inlay_hint[ 'position' ][ 'column_num' ] ),
+        chunks
+      )
