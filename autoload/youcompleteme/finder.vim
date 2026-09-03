@@ -689,7 +689,9 @@ function! s:SearchWorkspace( query, new_query ) abort
     " for
     for [ ft, bufnr ] in copy( s:find_symbol_status.pending )
       if s:find_symbol_status.raw_results[ ft ] isnot# v:none
-        call filter( s:find_symbol_status.pending, { v -> v !=# ft } )
+        call filter(
+              \ s:find_symbol_status.pending,
+              \ { _, request -> request[ 0 ] !=# ft } )
         let s:find_symbol_status.raw_results[ ft ] = v:none
         call youcompleteme#GetRawCommandResponseAsync(
               \ function( 's:HandleWorkspaceSymbols', [ ft ] ),
