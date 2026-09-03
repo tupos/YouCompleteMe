@@ -122,12 +122,10 @@ let s:find_symbol_status = {}
 " Entry point {{{
 
 function! youcompleteme#finder#FindSymbol( scope ) abort
-  if !py3eval( 'vimsupport.VimSupportsPopupWindows()' )
+  if !youcompleteme#finder#ui#Supported()
     echo 'Sorry, this feature is not supported in your editor'
     return
   endif
-
-  call youcompleteme#symbol#InitSymbolProperties()
 
   let s:find_symbol_status = {
         \ 'selected': -1,
@@ -147,36 +145,15 @@ function! youcompleteme#finder#FindSymbol( scope ) abort
         \ 'spinner_timer': -1,
         \ }
 
-  let opts = {
-        \ 'padding': [ 1, 2, 1, 2 ],
-        \ 'wrap': 0,
-        \ 'minwidth': &columns / 3 * 2,
-        \ 'minheight': &lines / 3 * 2,
-        \ 'maxwidth': &columns / 3 * 2,
-        \ 'maxheight': &lines / 3 * 2,
-        \ 'line': &lines / 6,
-        \ 'col': &columns / 6,
-        \ 'pos': 'topleft',
-        \ 'drag': 1,
-        \ 'resize': 1,
-        \ 'close': 'button',
-        \ 'border': [],
-        \ 'callback': function( 's:PopupClosed' ),
-        \ 'filter': function( 's:HandleKeyPress' ),
-        \ 'highlight': 'Normal',
-        \ }
-
-  if &ambiwidth ==# 'single' && &encoding ==? 'utf-8'
-    let opts[ 'borderchars' ] = [ '─', '│', '─', '│', '╭', '╮', '┛', '╰' ]
-  endif
-
   if a:scope ==# 'document'
     let s:find_symbol_status.query_func = function( 's:SearchDocument' )
   else
     let s:find_symbol_status.query_func = function( 's:SearchWorkspace' )
   endif
 
-  let s:find_symbol_status.id = popup_create( 'Type to query for stuff', opts )
+  let s:find_symbol_status.id = youcompleteme#finder#ui#Create(
+        \ 'Type to query for stuff',
+        \ function( 's:PopupClosed' ) )
 
   " Kick off the request now
   if a:scope ==# 'document'
@@ -197,6 +174,11 @@ function! youcompleteme#finder#FindSymbol( scope ) abort
   setlocal buftype=prompt noswapfile modifiable nomodified noreadonly
   setlocal nobuflisted bufhidden=delete textwidth=0
   call prompt_setprompt( bufnr(), s:prompt )
+  call youcompleteme#finder#ui#BindKeys(
+        \ s:find_symbol_status.id,
+        \ s:find_symbol_status.prompt_bufnr,
+        \ function( 's:HandleKeyPress' ) )
+
   augroup YCMPromptFindSymbol
     autocmd!
     autocmd TextChanged,TextChangedI <buffer> call s:OnQueryTextChanged()
@@ -227,7 +209,9 @@ function! s:Cancel() abort
     return
   endif
 
-  call popup_close( s:find_symbol_status.id, -1 )
+  call youcompleteme#finder#ui#Close(
+        \ s:find_symbol_status.id,
+        \ -1 )
 endfunction
 " }}}
 
@@ -265,7 +249,8 @@ function! s:HandleKeyPress( id, key ) abort
     let handled = 1
   elseif a:key ==# "\<PageDown>" || a:key ==# "\<kPageDown>"
     let s:find_symbol_status.selected +=
-          \ popup_getpos( s:find_symbol_status.id ).core_height
+          \ youcompleteme#finder#ui#GetHeight(
+          \   s:find_symbol_status.id )
     " Don't wrap
     if s:find_symbol_status.selected >= len( s:find_symbol_status.results )
       let s:find_symbol_status.selected =
@@ -275,7 +260,8 @@ function! s:HandleKeyPress( id, key ) abort
     let handled = 1
   elseif a:key ==# "\<PageUp>" || a:key ==# "\<kPageUp>"
     let s:find_symbol_status.selected -=
-          \ popup_getpos( s:find_symbol_status.id ).core_height
+          \ youcompleteme#finder#ui#GetHeight(
+          \   s:find_symbol_status.id )
     " Don't wrap
     if s:find_symbol_status.selected < 0
       let s:find_symbol_status.selected = 0
@@ -283,11 +269,15 @@ function! s:HandleKeyPress( id, key ) abort
     let redraw = 1
     let handled = 1
   elseif a:key ==# "\<C-c>"
-    call popup_close( a:id, -1 )
+    call youcompleteme#finder#ui#Close(
+          \ a:id,
+          \ -1 )
     let handled = 1
   elseif a:key ==# "\<CR>"
     if s:find_symbol_status.selected >= 0
-      call popup_close( a:id, s:find_symbol_status.selected )
+      call youcompleteme#finder#ui#Close(
+            \ a:id,
+            \ s:find_symbol_status.selected )
       let handled = 1
     endif
   elseif a:key ==# "\<Home>" || a:key ==# "\<kHome>"
@@ -356,15 +346,7 @@ function! s:PopupClosed( id, selected ) abort
 
       " Emulate :echo, to avoid a redraw getting rid of the message.
       let txt = 'Added ' . len( getqflist() ) . ' entries to quickfix list.'
-      call popup_notification(
-            \ txt,
-            \ {
-              \  'line':      1,
-              \  'col':       &columns - len( txt ),
-              \  'padding':   [ 0, 0, 0, 0 ],
-              \  'border':    [ 0, 0, 0, 0 ],
-              \  'highlight': 'PMenu'
-            \ } )
+      call youcompleteme#finder#ui#Notify( txt )
 
       " But don't open it, as this could take up valuable actual screen space
       " py3 vimsupport.OpenQuickFixList()
@@ -411,10 +393,13 @@ function! s:RedrawFinderPopup() abort
         \ ] )
 
   if empty( s:find_symbol_status.results )
-    call popup_settext( s:find_symbol_status.id, 'No results' )
+    call youcompleteme#finder#ui#SetContents(
+          \ s:find_symbol_status.id,
+          \ 'No results' )
     let s:find_symbol_status.selected = -1
   else
-    let popup_width = popup_getpos( s:find_symbol_status.id ).core_width
+    let popup_width = youcompleteme#finder#ui#GetWidth(
+          \ s:find_symbol_status.id )
 
     let buffer = []
 
@@ -518,40 +503,14 @@ function! s:RedrawFinderPopup() abort
       call add( buffer, { 'text': line, 'props': props } )
     endfor
 
-    call popup_settext( s:find_symbol_status.id, buffer )
+    call youcompleteme#finder#ui#SetContents(
+          \ s:find_symbol_status.id,
+          \ buffer )
   endif
 
-  if s:find_symbol_status.selected > -1
-    " Move the cursor so that cursorline highlights the selected item. Also
-    " scroll the window if the selected item is not in view. To make scrolling
-    " feel natural we position the current line a the bottom of the window if
-    " the new current line is below the current viewport, and at the top if the
-    " new current line is above the viewport.
-    let new_line =  s:find_symbol_status.selected + 1
-    let pos = popup_getpos( s:find_symbol_status.id )
-
-    call win_execute( s:find_symbol_status.id,
-                    \ 'call cursor( [' . string( new_line ) . ', 1] )' )
-
-    if new_line < pos.firstline
-      " New line is above the viewport, scroll so that this line is at the top
-      " of the window.
-      call win_execute( s:find_symbol_status.id, "normal z\<CR>" )
-    elseif new_line >= ( pos.firstline + pos.core_height )
-      " New line is below the viewport, scroll so that this line is at the
-      " bottom of the window.
-      call win_execute( s:find_symbol_status.id, ':normal z-' )
-    endif
-    " Otherwise, new item is already displayed - don't scroll the window.
-
-    if !getwinvar( s:find_symbol_status.id, '&cursorline' )
-      call win_execute( s:find_symbol_status.id,
-                      \ 'set cursorline cursorlineopt&' )
-    endif
-  else
-    call win_execute( s:find_symbol_status.id, 'set nocursorline' )
-  endif
-
+  call youcompleteme#finder#ui#SetSelected(
+        \ s:find_symbol_status.id,
+        \ s:find_symbol_status.selected )
 endfunction
 
 function! s:SetTitle() abort
@@ -561,10 +520,10 @@ function! s:SetTitle() abort
     let status = s:icon_done
   endif
 
-  call popup_setoptions( s:find_symbol_status.id, {
-        \ 'title': ' [' . status . '] Search for symbol: '
-        \            . s:find_symbol_status.query . ' '
-        \ } )
+  call youcompleteme#finder#ui#SetTitle(
+        \ s:find_symbol_status.id,
+        \ ' [' . status . '] Search for symbol: '
+        \   . s:find_symbol_status.query . ' ' )
 endfunction
 
 
@@ -767,7 +726,8 @@ function! s:SearchDocument( query, new_query ) abort
   endif
 
   if type( s:find_symbol_status.raw_results ) == v:t_none
-    call popup_settext( s:find_symbol_status.id,
+    call youcompleteme#finder#ui#SetContents(
+          \ s:find_symbol_status.id,
           \ 'No symbols found in document' )
     return
   endif
