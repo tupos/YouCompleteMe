@@ -15,7 +15,10 @@ function! youcompleteme#test#setup#SetUp() abort
   runtime! plugin/**/*.vim
   call youcompleteme#Enable()
 
-  call assert_true( pyxeval( 'vimsupport.VimSupportsPopupWindows()' ) )
+  " Neovim provides its own UI primitives instead of Vim's popup functions.
+  if !has( 'nvim' )
+    call assert_true( pyxeval( 'vimsupport.VimSupportsPopupWindows()' ) )
+  endif
   call WaitForAssert( {->
         \ assert_true( pyxeval( "'ycm_state' in globals()" ) )
         \ } )

@@ -43,19 +43,37 @@ let s:highlight_group_for_symbol_kind = {
       \ 'TypeParameter': 'Typedef',
       \ 'Variable': 'Identifier',
       \ }
+let s:highlight_group_for_property_type = {
+      \ 'YCM-symbol-Normal': 'Normal',
+      \ 'YCM-symbol-file': 'Comment',
+      \ 'YCM-symbol-filetype': 'Special',
+      \ 'YCM-symbol-line-num': 'Number',
+      \ }
+
+for [ s:kind, s:highlight_group ] in
+      \ items( s:highlight_group_for_symbol_kind )
+  let s:highlight_group_for_property_type[
+        \ 'YCM-symbol-' . s:kind ] = s:highlight_group
+endfor
+unlet s:kind
+unlet s:highlight_group
+
 let s:initialized_text_properties = v:false
+
+
+function! youcompleteme#symbol#GetHighlightGroups() abort
+  return copy( s:highlight_group_for_property_type )
+endfunction
+
 
 function! youcompleteme#symbol#InitSymbolProperties() abort
   if !s:initialized_text_properties
-    call prop_type_add( 'YCM-symbol-Normal', { 'highlight': 'Normal' } )
-    for k in keys( s:highlight_group_for_symbol_kind )
+    for [ property_type, highlight_group ] in
+          \ items( s:highlight_group_for_property_type )
       call prop_type_add(
-            \ 'YCM-symbol-' . k,
-            \ { 'highlight': s:highlight_group_for_symbol_kind[ k ] } )
+            \ property_type,
+            \ { 'highlight': highlight_group } )
     endfor
-    call prop_type_add( 'YCM-symbol-file', { 'highlight': 'Comment' } )
-    call prop_type_add( 'YCM-symbol-filetype', { 'highlight': 'Special' } )
-    call prop_type_add( 'YCM-symbol-line-num', { 'highlight': 'Number' } )
     let s:initialized_text_properties = v:true
   endif
 endfunction
@@ -67,5 +85,4 @@ function! youcompleteme#symbol#GetPropForSymbolKind( kind ) abort
 
   return 'YCM-symbol-Normal'
 endfunction
-
 

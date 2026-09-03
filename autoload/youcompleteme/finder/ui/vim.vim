@@ -81,7 +81,33 @@ endfunction
 function! youcompleteme#finder#ui#vim#SetContents(
       \ window_id,
       \ contents ) abort
-  call popup_settext( a:window_id, a:contents )
+  if type( a:contents ) != v:t_list
+    call popup_settext( a:window_id, a:contents )
+    return
+  endif
+
+  let popup_lines = []
+  for line in a:contents
+    let properties = []
+    for highlight in line.highlights
+      call add(
+            \ properties,
+            \ {
+            \   'col': highlight.column,
+            \   'length': highlight.length,
+            \   'type': highlight.group,
+            \ } )
+    endfor
+
+    call add(
+          \ popup_lines,
+          \ {
+          \   'text': line.text,
+          \   'props': properties,
+          \ } )
+  endfor
+
+  call popup_settext( a:window_id, popup_lines )
 endfunction
 
 

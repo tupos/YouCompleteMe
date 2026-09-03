@@ -2072,8 +2072,6 @@ Here's how you'd change the style for a group:
                                                   *youcompleteme-symbol-search*
 Symbol Search ~
 
-**_This feature requires Vim and is not supported in Neovim_**
-
 YCM provides a way to search for and jump to a symbol in the current project or
 document when using supported languages.
 

@@ -22,7 +22,7 @@ let s:is_neovim = has( 'nvim' )
 
 function! youcompleteme#finder#ui#Supported() abort
   if s:is_neovim
-    return v:false
+    return youcompleteme#finder#ui#neovim#Supported()
   endif
   return youcompleteme#finder#ui#vim#Supported()
 endfunction

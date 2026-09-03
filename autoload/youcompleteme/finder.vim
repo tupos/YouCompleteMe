@@ -131,16 +131,16 @@ function! youcompleteme#finder#FindSymbol( scope ) abort
         \ 'selected': -1,
         \ 'query': '',
         \ 'results': [],
-        \ 'raw_results': v:none,
+        \ 'raw_results': v:null,
         \ 'all_filetypes': v:true,
         \ 'pending': [],
         \ 'winid': win_getid(),
         \ 'bufnr': bufnr(),
         \ 'prompt_bufnr': -1,
         \ 'prompt_winid': -1,
-        \ 'filter': v:none,
-        \ 'id': v:none,
-        \ 'cursorline_match': v:none,
+        \ 'filter': v:null,
+        \ 'id': v:null,
+        \ 'cursorline_match': v:null,
         \ 'spinner': 0,
         \ 'spinner_timer': -1,
         \ }
@@ -182,8 +182,10 @@ function! youcompleteme#finder#FindSymbol( scope ) abort
   augroup YCMPromptFindSymbol
     autocmd!
     autocmd TextChanged,TextChangedI <buffer> call s:OnQueryTextChanged()
-    autocmd WinLeave <buffer> call s:Cancel()
-    autocmd CmdLineEnter <buffer> call s:Cancel()
+    autocmd WinLeave <buffer> ++nested
+          \ call s:Cancel()
+    autocmd CmdLineEnter <buffer> ++nested
+          \ call s:Cancel()
   augroup END
   startinsert
 endfunction
@@ -426,23 +428,28 @@ function! s:RedrawFinderPopup() abort
         let kind = result[ 'extra_data' ][ 'kind' ]
         let name = result[ 'extra_data' ][ 'name' ]
         let desc = kind .. ': ' .. name
-        let prop = youcompleteme#symbol#GetPropForSymbolKind( kind )
-        let props = [
-            \ { 'col': 1,
+        let highlight_group =
+              \ youcompleteme#symbol#GetPropForSymbolKind( kind )
+        let highlights = [
+            \ { 'column': 1,
             \   'length': len( kind ) + 2,
-            \   'type': 'YCM-symbol-Normal'  },
-            \ { 'col': len( kind ) + 3,
+            \   'group': 'YCM-symbol-Normal' },
+            \ { 'column': len( kind ) + 3,
             \   'length': len( name ),
-            \   'type': prop },
+            \   'group': highlight_group },
             \ ]
       elseif result->has_key( 'description' )
         let desc = result[ 'description' ]
-        let props = [
-            \ { 'col': 1, 'length': len( desc ), 'type': 'YCM-symbol-Normal' },
+        let highlights = [
+            \ {
+            \   'column': 1,
+            \   'length': len( desc ),
+            \   'group': 'YCM-symbol-Normal',
+            \ },
             \ ]
       else
         let desc = 'Invalid entry: ' . string( result )
-        let props = []
+        let highlights = []
       endif
 
       let line_num = result[ 'line_num' ]
@@ -475,32 +482,39 @@ function! s:RedrawFinderPopup() abort
 
       if len( path ) > 0
         if path_includes_line
-          let props += [
-                \ { 'col': len( desc ) + spaces + 1,
+          let highlights += [
+                \ { 'column': len( desc ) + spaces + 1,
                 \   'length': len( path ) - len( line_num ),
-                \   'type': 'YCM-symbol-file' },
-                \ { 'col': len( desc ) + spaces + 1 + len( path ) - len( line_num ),
+                \   'group': 'YCM-symbol-file' },
+                \ {
+                \   'column':
+                \     len( desc ) + spaces + 1 + len( path ) - len( line_num ),
                 \   'length': len( line_num ),
-                \   'type': 'YCM-symbol-line-num' },
+                \   'group': 'YCM-symbol-line-num',
+                \ },
                 \ ]
         else
-          let props += [
-                \ { 'col': len( desc ) + spaces + 1,
+          let highlights += [
+                \ { 'column': len( desc ) + spaces + 1,
                 \   'length': len( path ),
-                \   'type': 'YCM-symbol-file' },
+                \   'group': 'YCM-symbol-file' },
                 \ ]
         endif
       endif
 
       if len_filetype > 0
-        let props += [
-            \ { 'col': popup_width - len_filetype + len( filetype_sep ),
+        let highlights += [
+            \ {
+            \   'column': popup_width - len_filetype + len( filetype_sep ),
             \   'length': len_filetype,
-            \   'type': 'YCM-symbol-filetype' },
+            \   'group': 'YCM-symbol-filetype',
+            \ },
             \ ]
       endif
 
-      call add( buffer, { 'text': line, 'props': props } )
+      call add(
+            \ buffer,
+            \ { 'text': line, 'highlights': highlights } )
     endfor
 
     call youcompleteme#finder#ui#SetContents(
@@ -541,7 +555,7 @@ function! s:RequeryFinderPopup( new_query ) abort
 endfunction
 
 function! s:ParseGoToResponse( filetype, results ) abort
-  if type( a:results ) == v:t_none || empty( a:results )
+  if type( a:results ) == type( v:null ) || empty( a:results )
     let results = []
   elseif type( a:results ) != v:t_list
     if type( a:results ) == v:t_dict && has_key( a:results, 'error' )
@@ -599,7 +613,7 @@ endfunction
 function! s:SearchWorkspace( query, new_query ) abort
 
   if a:new_query
-    if s:find_symbol_status.raw_results is# v:none
+    if s:find_symbol_status.raw_results is# v:null
       let raw_results = {}
     else
       let raw_results = copy( s:find_symbol_status.raw_results )
@@ -625,8 +639,8 @@ function! s:SearchWorkspace( query, new_query ) abort
         continue
       endif
 
-      let s:find_symbol_status.raw_results[ ft ] = v:none
-      if has_key( raw_results, ft ) && raw_results[ ft ] is# v:none
+      let s:find_symbol_status.raw_results[ ft ] = v:null
+      if has_key( raw_results, ft ) && raw_results[ ft ] is# v:null
         call add( s:find_symbol_status.pending,
                 \ [ ft, ft_buffer_map[ ft ][ 0 ] ] )
       else
@@ -647,11 +661,11 @@ function! s:SearchWorkspace( query, new_query ) abort
     " Just requery those completer filetypes that we're not currently waiting
     " for
     for [ ft, bufnr ] in copy( s:find_symbol_status.pending )
-      if s:find_symbol_status.raw_results[ ft ] isnot# v:none
+      if s:find_symbol_status.raw_results[ ft ] isnot# v:null
         call filter(
               \ s:find_symbol_status.pending,
               \ { _, request -> request[ 0 ] !=# ft } )
-        let s:find_symbol_status.raw_results[ ft ] = v:none
+        let s:find_symbol_status.raw_results[ ft ] = v:null
         call youcompleteme#GetRawCommandResponseAsync(
               \ function( 's:HandleWorkspaceSymbols', [ ft ] ),
               \ 'GoToSymbol',
@@ -673,7 +687,7 @@ function! s:HandleWorkspaceSymbols( filetype, results ) abort
   let results = []
   let waiting = 0
   for ft in keys( s:find_symbol_status.raw_results )
-    if s:find_symbol_status.raw_results[ ft ] is v:none
+    if s:find_symbol_status.raw_results[ ft ] is v:null
       let waiting = 1
       continue
     endif
@@ -725,7 +739,7 @@ function! s:SearchDocument( query, new_query ) abort
     return
   endif
 
-  if type( s:find_symbol_status.raw_results ) == v:t_none
+  if type( s:find_symbol_status.raw_results ) == type( v:null )
     call youcompleteme#finder#ui#SetContents(
           \ s:find_symbol_status.id,
           \ 'No symbols found in document' )

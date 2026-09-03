@@ -1824,8 +1824,6 @@ highlight YcmErrorLine guibg=#3f0000
 
 ### Symbol Search
 
-***This feature requires Vim and is not supported in Neovim***
-
 YCM provides a way to search for and jump to a symbol in the current project or
 document when using supported languages.
 
