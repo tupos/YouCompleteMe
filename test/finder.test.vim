@@ -9,6 +9,22 @@ endfunction
 function! TearDown()
 endfunction
 
+function! s:WaitForPopupContents( id, pattern )
+  call WaitForAssert( { ->
+        \ assert_equal(
+        \   1,
+        \   get( popup_getpos( a:id ), 'visible', 0 ) ) } )
+
+  call WaitForAssert( { ->
+        \ assert_match(
+        \   a:pattern,
+        \   get(
+        \     getbufline( winbufnr( a:id ), 1 ),
+        \     0,
+        \     '' ) ) },
+        \ 10000 )
+endfunction
+
 function! Test_WorkspaceSymbol_Basic()
   call youcompleteme#test#setup#OpenFile(
         \ '/test/testdata/cpp/finder_test.cc', {} )
@@ -27,7 +43,6 @@ function! Test_WorkspaceSymbol_Basic()
     call WaitForAssert( { -> assert_true(
           \ youcompleteme#finder#GetState().id != -1 ) } )
 
-    " TODO: Wait for the popup to be displayed, and check the contents
     call FeedAndCheckAgain( 'xthisisathing', funcref( 'SelectItem' ) )
   endfunction
 
@@ -40,6 +55,10 @@ function! Test_WorkspaceSymbol_Basic()
           \ 10000 )
 
     call WaitForAssert( { -> assert_equal( 1, line( '$', id ) ) } )
+
+    call s:WaitForPopupContents(
+          \ id,
+          \ '^Field: x_this_is_a_thing\s\+.*finder_test\.cc:5 cpp$' )
 
     call feedkeys( "\<CR>" )
   endfunction
@@ -75,7 +94,6 @@ function! Test_DocumentSymbols_Basic()
     call WaitForAssert( { -> assert_true(
           \ youcompleteme#finder#GetState().id != -1 ) } )
 
-    " TODO: Wait for the popup to be displayed, and check the contents
     call FeedAndCheckAgain( 'xthisisathing', funcref( 'SelectItem' ) )
   endfunction
 
@@ -88,6 +106,10 @@ function! Test_DocumentSymbols_Basic()
           \ 10000 )
 
     call WaitForAssert( { -> assert_equal( 1, line( '$', id ) ) } )
+
+    call s:WaitForPopupContents(
+          \ id,
+          \ '^Field: x_this_is_a_thing\s\+.*finder_test\.cc:5$' )
 
     call feedkeys( "\<CR>" )
   endfunction
@@ -180,7 +202,6 @@ function! Test_EmptySearch()
     call WaitForAssert( { -> assert_true(
           \ youcompleteme#finder#GetState().id != -1 ) } )
 
-    " TODO: Wait for the popup to be displayed, and check the contents
     call FeedAndCheckAgain( 'xnothingshouldmatchthisx',
                           \ funcref( 'SelectNothing' ) )
   endfunction
@@ -195,7 +216,7 @@ function! Test_EmptySearch()
 
     call WaitForAssert( { -> assert_equal( 1, line( '$', id ) ) } )
 
-    call assert_equal( 'No results', getbufline( winbufnr( id ), '$' )[ 0 ] )
+    call s:WaitForPopupContents( id, '^No results$' )
     call FeedAndCheckAgain( "\<CR>xnotarealthingx",
                           \ funcref( 'ChangeSearch' ) )
   endfunction
@@ -209,7 +230,7 @@ function! Test_EmptySearch()
           \ assert_equal( ' [X] Search for symbol: xnotarealthingx ',
           \ popup_getoptions( id ).title  ) },
           \ 10000 )
-    call assert_equal( 'No results', getbufline( winbufnr( id ), '$' )[ 0 ] )
+    call s:WaitForPopupContents( id, '^No results$' )
 
     call assert_equal( -1, youcompleteme#finder#GetState().selected )
 
@@ -439,7 +460,6 @@ function! Test_NoFileType_NoCompletionIn_PromptBuffer()
     call WaitForAssert( { -> assert_true(
           \ youcompleteme#finder#GetState().id != -1 ) } )
 
-    " TODO: Wait for the popup to be displayed, and check the contents
     call FeedAndCheckAgain( 'xthisisathing', funcref( 'CheckNoPopup' ) )
   endfunction
 
@@ -455,6 +475,10 @@ function! Test_NoFileType_NoCompletionIn_PromptBuffer()
     call assert_equal( 'x_this_is_a_thing',
           \ youcompleteme#finder#GetState().results[
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
+
+    call s:WaitForPopupContents(
+          \ id,
+          \ '^Field: x_this_is_a_thing\s\+.*finder_test\.cc:5 cpp$' )
 
     " Check there is no PUM - we disable completion in the prompt buffer
     call assert_false( pumvisible() )
