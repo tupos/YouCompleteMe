@@ -316,6 +316,18 @@ function! s:HandleKeyPress( id, key ) abort
 endfunction
 
 
+function! s:JumpToSelection( selected, timer_id ) abort
+  py3 vimsupport.JumpToLocation(
+        \ filename = vimsupport.ToUnicode(
+        \   vim.eval( 'a:selected.filepath' ) ),
+        \ line = int( vim.eval( 'a:selected.line_num' ) ),
+        \ column = int( vim.eval( 'a:selected.column_num' ) ),
+        \ modifiers = '',
+        \ command = 'same-buffer'
+        \ )
+endfunction
+
+
 " Handle the popup closing: jump to the selected item
 function! s:PopupClosed( id, selected ) abort
   stopinsert
@@ -328,13 +340,12 @@ function! s:PopupClosed( id, selected ) abort
   if a:selected >= 0
     let selected = s:find_symbol_status.results[ a:selected ]
 
-    py3 vimsupport.JumpToLocation(
-          \ filename = vimsupport.ToUnicode( vim.eval( 'selected.filepath' ) ),
-          \ line = int( vim.eval( 'selected.line_num' ) ),
-          \ column = int( vim.eval( 'selected.column_num' ) ),
-          \ modifiers = '',
-          \ command = 'same-buffer'
-          \ )
+    " Vim finishes leaving Insert mode after this popup callback returns.
+    " Defer the jump so that process does not move its cursor one character
+    " to the left.
+    call timer_start(
+          \ 0,
+          \ function( 's:JumpToSelection', [ selected ] ) )
 
     if len( s:find_symbol_status.results ) > 1
       " Also, populate the quickfix list

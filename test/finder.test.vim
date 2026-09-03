@@ -34,6 +34,7 @@ function! Test_WorkspaceSymbol_Basic()
   let l = winlayout()
 
   let popup_id = -1
+  let selected_position = []
 
   function! PutQuery( ... )
     " Wait for the current buffer to be a prompt buffer
@@ -46,7 +47,7 @@ function! Test_WorkspaceSymbol_Basic()
     call FeedAndCheckAgain( 'xthisisathing', funcref( 'SelectItem' ) )
   endfunction
 
-  function SelectItem( ... )
+  function SelectItem( ... ) closure
     let id = youcompleteme#finder#GetState().id
 
     call WaitForAssert( { ->
@@ -60,6 +61,14 @@ function! Test_WorkspaceSymbol_Basic()
           \ id,
           \ '^Field: x_this_is_a_thing\s\+.*finder_test\.cc:5 cpp$' )
 
+    let selected = youcompleteme#finder#GetState().results[
+          \ youcompleteme#finder#GetState().selected ]
+    let selected_position = [
+          \ 0,
+          \ str2nr( selected.line_num ),
+          \ str2nr( selected.column_num ),
+          \ 0
+          \ ]
     call feedkeys( "\<CR>" )
   endfunction
 
@@ -69,7 +78,9 @@ function! Test_WorkspaceSymbol_Basic()
   call WaitForAssert( { -> assert_equal( l, winlayout() ) } )
   call WaitForAssert( { -> assert_equal( original_win, winnr() ) } )
   call assert_equal( b, bufnr() )
-  call assert_equal( [ 0, 5, 7, 0 ], getpos( '.' ) )
+  call assert_equal( [ 0, 5, 7, 0 ], selected_position )
+  call WaitForAssert(
+        \ { -> assert_equal( selected_position, getpos( '.' ) ) } )
 
   delfunct PutQuery
   delfunct SelectItem
@@ -122,7 +133,8 @@ function! Test_DocumentSymbols_Basic()
   call assert_equal( b, bufnr() )
   " NOTE: cland returns the position of the decl here not the identifier. This
   " is why it's position 3 not 7 as in the Test_WorkspaceSymbol_Basic
-  call assert_equal( [ 0, 5, 3, 0 ], getpos( '.' ) )
+  call WaitForAssert(
+        \ { -> assert_equal( [ 0, 5, 3, 0 ], getpos( '.' ) ) } )
 
   delfunct PutQuery
   delfunct SelectItem
@@ -353,7 +365,8 @@ function! Test_EmptySearch()
   call WaitForAssert( { -> assert_equal( l, winlayout() ) } )
   call WaitForAssert( { -> assert_equal( original_win, winnr() ) } )
   call assert_equal( b, bufnr() )
-  call assert_equal( [ 0, 5, 30, 0 ], getpos( '.' ) )
+  call WaitForAssert(
+        \ { -> assert_equal( [ 0, 5, 30, 0 ], getpos( '.' ) ) } )
 
   " We pop up a notification with some text in it
   if exists( '*popup_list' )
@@ -492,7 +505,8 @@ function! Test_NoFileType_NoCompletionIn_PromptBuffer()
   call WaitForAssert( { -> assert_equal( l, winlayout() ) } )
   call WaitForAssert( { -> assert_equal( original_win, winnr() ) } )
   call assert_equal( b, bufnr() )
-  call assert_equal( [ 0, 5, 7, 0 ], getpos( '.' ) )
+  call WaitForAssert(
+        \ { -> assert_equal( [ 0, 5, 7, 0 ], getpos( '.' ) ) } )
 
   call test_override( 'ALL', 0 )
   silent %bwipe!
