@@ -257,12 +257,7 @@ function! Test_EmptySearch()
           \ assert_equal( ' [X] Search for symbol: xtiat ',
           \ popup_getoptions( popup_id ).title  ) },
           \ 10000 )
-    call WaitForAssert( { -> assert_equal( 2, line( '$', popup_id ) ) } )
-
-    " FIXME: Doing all these tests with only 2 entries means that it's not
-    " really checking the behaviour completely accurately, we should at least
-    " use 3, but that would require crafting a new test file, which is nonzero
-    " effort. Well, it's probably as much effort as writing this comment...
+    call WaitForAssert( { -> assert_equal( 3, line( '$', popup_id ) ) } )
 
     " Check down movement
     call assert_equal( 0, youcompleteme#finder#GetState().selected )
@@ -277,33 +272,33 @@ function! Test_EmptySearch()
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
 
     call feedkeys( "\<Down>", 'xt' )
-    call assert_equal( 0, youcompleteme#finder#GetState().selected )
-    call assert_equal( 'x_this_is_a_thing',
+    call assert_equal( 2, youcompleteme#finder#GetState().selected )
+    call assert_equal( 'x_topic_is_a_thing',
           \ youcompleteme#finder#GetState().results[
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
 
     call feedkeys( "\<Tab>", 'xt' )
-    call assert_equal( 1, youcompleteme#finder#GetState().selected )
-    call assert_equal( 'x_that_is_a_thing',
+    call assert_equal( 0, youcompleteme#finder#GetState().selected )
+    call assert_equal( 'x_this_is_a_thing',
           \ youcompleteme#finder#GetState().results[
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
 
     call feedkeys( "\<C-n>", 'xt' )
-    call assert_equal( 0, youcompleteme#finder#GetState().selected )
-    call assert_equal( 'x_this_is_a_thing',
+    call assert_equal( 1, youcompleteme#finder#GetState().selected )
+    call assert_equal( 'x_that_is_a_thing',
           \ youcompleteme#finder#GetState().results[
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
 
     " Check up movement and wrapping
     call feedkeys( "\<C-k>", 'xt' )
-    call assert_equal( 1, youcompleteme#finder#GetState().selected )
-    call assert_equal( 'x_that_is_a_thing',
+    call assert_equal( 0, youcompleteme#finder#GetState().selected )
+    call assert_equal( 'x_this_is_a_thing',
           \ youcompleteme#finder#GetState().results[
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
 
     call feedkeys( "\<Up>", 'xt' )
-    call assert_equal( 0, youcompleteme#finder#GetState().selected )
-    call assert_equal( 'x_this_is_a_thing',
+    call assert_equal( 2, youcompleteme#finder#GetState().selected )
+    call assert_equal( 'x_topic_is_a_thing',
           \ youcompleteme#finder#GetState().results[
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
 
@@ -332,14 +327,14 @@ function! Test_EmptySearch()
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
 
     call feedkeys( "\<End>", 'xt' )
-    call assert_equal( 1, youcompleteme#finder#GetState().selected )
-    call assert_equal( 'x_that_is_a_thing',
+    call assert_equal( 2, youcompleteme#finder#GetState().selected )
+    call assert_equal( 'x_topic_is_a_thing',
           \ youcompleteme#finder#GetState().results[
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
 
     call feedkeys( "\<End>", 'xt' )
-    call assert_equal( 1, youcompleteme#finder#GetState().selected )
-    call assert_equal( 'x_that_is_a_thing',
+    call assert_equal( 2, youcompleteme#finder#GetState().selected )
+    call assert_equal( 'x_topic_is_a_thing',
           \ youcompleteme#finder#GetState().results[
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
 
@@ -350,8 +345,8 @@ function! Test_EmptySearch()
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
 
     call feedkeys( "\<PageDown>", 'xt' )
-    call assert_equal( 1, youcompleteme#finder#GetState().selected )
-    call assert_equal( 'x_that_is_a_thing',
+    call assert_equal( 2, youcompleteme#finder#GetState().selected )
+    call assert_equal( 'x_topic_is_a_thing',
           \ youcompleteme#finder#GetState().results[
           \   youcompleteme#finder#GetState().selected ].extra_data.name )
 
@@ -366,7 +361,7 @@ function! Test_EmptySearch()
   call WaitForAssert( { -> assert_equal( original_win, winnr() ) } )
   call assert_equal( b, bufnr() )
   call WaitForAssert(
-        \ { -> assert_equal( [ 0, 5, 30, 0 ], getpos( '.' ) ) } )
+        \ { -> assert_equal( [ 0, 5, 53, 0 ], getpos( '.' ) ) } )
 
   " We pop up a notification with some text in it
   if exists( '*popup_list' )
@@ -376,7 +371,7 @@ function! Test_EmptySearch()
   " Old vim doesn't have popup_list, so hit-test the top-right corner which is
   " where we pup the popu
   let notification_id = popup_locate( 1, &columns - 1 )
-  call assert_equal( [ 'Added 2 entries to quickfix list.' ],
+  call assert_equal( [ 'Added 3 entries to quickfix list.' ],
                    \ getbufline( winbufnr( notification_id ), 1, '$' ) )
   " Wait for the notification to clear
   call WaitForAssert(
