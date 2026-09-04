@@ -61,6 +61,7 @@ HIGHLIGHT_GROUP: dict[ str, str ] = {
   'annotation': 'Macro',
 }
 REPORTED_MISSING_TYPES: set[ str ] = set()
+SEMANTIC_HIGHLIGHT_NAMESPACE: str = 'ycm_semantic_highlighting'
 SEMANTIC_HIGHLIGHT_GROUPS: dict[ str, str ] = {
   'YCM_HL_UNKNOWN': 'WarningMsg',
   **{
@@ -71,16 +72,15 @@ SEMANTIC_HIGHLIGHT_GROUPS: dict[ str, str ] = {
 
 
 def Initialise() -> bool:
-  if vimsupport.VimIsNeovim():
-    return False
   return CreateSemanticHighlightingRenderer(
+    SEMANTIC_HIGHLIGHT_NAMESPACE,
     SEMANTIC_HIGHLIGHT_GROUPS
   ).Initialise()
 
 
 
 class SemanticHighlighting( sr.ScrollingBufferRange ):
-  """Stores the semantic highlighting state for a Vim buffer"""
+  """Stores the semantic highlighting state for an editor buffer"""
 
   def __init__(
       self,
@@ -90,7 +90,9 @@ class SemanticHighlighting( sr.ScrollingBufferRange ):
     self._renderer: SemanticHighlightingRenderer = (
       renderer
       if renderer is not None
-      else CreateSemanticHighlightingRenderer( SEMANTIC_HIGHLIGHT_GROUPS )
+      else CreateSemanticHighlightingRenderer(
+        SEMANTIC_HIGHLIGHT_NAMESPACE,
+        SEMANTIC_HIGHLIGHT_GROUPS )
     )
 
 

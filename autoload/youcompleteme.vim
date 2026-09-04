@@ -95,6 +95,7 @@ let s:work_done_progress_frames =
       \ [ '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' ]
 
 let s:force_preview_popup = 0
+let s:enable_semantic_highlighting = 0
 
 let s:RESOLVE_NONE = 0
 let s:RESOLVE_UP_FRONT = 1
@@ -248,7 +249,8 @@ function! youcompleteme#Enable()
 
   call s:SetUpOptions()
 
-  py3 ycm_semantic_highlighting.Initialise()
+  let s:enable_semantic_highlighting = py3eval(
+        \ 'ycm_semantic_highlighting.Initialise()' ) ? 1 : 0
   let s:enable_inlay_hints = py3eval( 'ycm_inlay_hints.Initialise()' ) ? 1 : 0
 
   call youcompleteme#EnableCursorMovedAutocommands()
@@ -931,12 +933,16 @@ function! s:OnFileReadyToParse( ... )
   endif
 endfunction
 
+function s:ShouldUseSemanticHighlightingNow( bufnr )
+  return s:enable_semantic_highlighting &&
+        \ getbufvar( a:bufnr, 'ycm_enable_semantic_highlighting',
+        \   get( g:, 'ycm_enable_semantic_highlighting', 0 ) )
+endfunction
+
 function! s:UpdateSemanticHighlighting( bufnr, force, redraw_anyway ) abort
   call s:StopPoller( s:pollers.semantic_highlighting )
-  if !s:is_neovim &&
-        \ get( b:, 'ycm_enable_semantic_highlighting',
-        \   get( g:, 'ycm_enable_semantic_highlighting', 0 ) )
 
+  if s:ShouldUseSemanticHighlightingNow( a:bufnr )
     if py3eval(
         \ 'ycm_state.Buffer( int( vim.eval( "a:bufnr" ) ) ).'
         \ . 'semantic_highlighting.Request( '

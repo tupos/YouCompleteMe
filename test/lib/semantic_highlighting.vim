@@ -131,6 +131,151 @@ function! Test_SemanticHighlights_AreRendered()
 endfunction
 
 
+function! Test_SemanticHighlights_ClearOnlyAffectsTargetBuffer()
+  if !py3eval( 'YCM_TEST_SEMANTIC_HIGHLIGHTING_SUPPORTED' )
+    throw 'Skipped: semantic highlighting is not supported'
+  endif
+
+  new
+  call setline( 1, 'first' )
+  let first_buffer = bufnr()
+  call YcmTest_DrawSemanticHighlights( first_buffer, [
+        \ {
+        \   'type': 'variable',
+        \   'range': {
+        \     'start': {
+        \       'line_num': 1,
+        \       'column_num': 1,
+        \     },
+        \     'end': {
+        \       'line_num': 1,
+        \       'column_num': 6,
+        \     },
+        \   },
+        \ },
+        \ ] )
+
+  new
+  call setline( 1, 'second' )
+  let second_buffer = bufnr()
+  call YcmTest_DrawSemanticHighlights( second_buffer, [
+        \ {
+        \   'type': 'variable',
+        \   'range': {
+        \     'start': {
+        \       'line_num': 1,
+        \       'column_num': 1,
+        \     },
+        \     'end': {
+        \       'line_num': 1,
+        \       'column_num': 7,
+        \     },
+        \   },
+        \ },
+        \ ] )
+
+  call YcmTest_DrawSemanticHighlights( first_buffer, [] )
+
+  call assert_equal(
+        \ [],
+        \ YcmTest_GetRenderedSemanticHighlights( first_buffer ) )
+  call assert_equal(
+        \ [
+        \   {
+        \     'line': 1,
+        \     'column': 1,
+        \     'length': 6,
+        \     'type': 'YCM_HL_variable',
+        \   },
+        \ ],
+        \ YcmTest_GetRenderedSemanticHighlights( second_buffer ) )
+
+  silent %bwipe!
+endfunction
+
+
+function! Test_SemanticHighlights_ClearPreservesUnrelatedDecorations()
+  if !py3eval( 'YCM_TEST_SEMANTIC_HIGHLIGHTING_SUPPORTED' )
+    throw 'Skipped: semantic highlighting is not supported'
+  endif
+
+  new
+  call setline( 1, 'value' )
+  let buffer_number = bufnr()
+  let unrelated_decoration = YcmTest_AddUnrelatedDecoration(
+        \ buffer_number )
+
+  call YcmTest_DrawSemanticHighlights( buffer_number, [
+        \ {
+        \   'type': 'variable',
+        \   'range': {
+        \     'start': {
+        \       'line_num': 1,
+        \       'column_num': 1,
+        \     },
+        \     'end': {
+        \       'line_num': 1,
+        \       'column_num': 6,
+        \     },
+        \   },
+        \ },
+        \ ] )
+  call YcmTest_DrawSemanticHighlights( buffer_number, [] )
+
+  call assert_equal(
+        \ [],
+        \ YcmTest_GetRenderedSemanticHighlights( buffer_number ) )
+  call assert_true(
+        \ YcmTest_UnrelatedDecorationExists(
+        \   buffer_number,
+        \   unrelated_decoration ) )
+
+  silent %bwipe!
+endfunction
+
+
+function! Test_SemanticHighlights_CustomTokenTypeUsesDefinedHighlight()
+  if !py3eval( 'YCM_TEST_SEMANTIC_HIGHLIGHTING_SUPPORTED' )
+    throw 'Skipped: semantic highlighting is not supported'
+  endif
+
+  new
+  call setline( 1, 'custom' )
+
+  call YcmTest_DrawSemanticHighlights( bufnr(), [
+        \ {
+        \   'type': 'ycmTestCustom',
+        \   'range': {
+        \     'start': {
+        \       'line_num': 1,
+        \       'column_num': 1,
+        \     },
+        \     'end': {
+        \       'line_num': 1,
+        \       'column_num': 7,
+        \     },
+        \   },
+        \ },
+        \ ] )
+
+  call assert_equal(
+        \ [
+        \   {
+        \     'line': 1,
+        \     'column': 1,
+        \     'length': 6,
+        \     'type': 'YCM_HL_ycmTestCustom',
+        \   },
+        \ ],
+        \ YcmTest_GetRenderedSemanticHighlights( bufnr() ) )
+  call assert_equal(
+        \ 'ErrorMsg',
+        \ YcmTest_GetCustomSemanticHighlight() )
+
+  silent %bwipe!
+endfunction
+
+
 function! Test_SemanticHighlights_RedrawReplacesOldHighlights()
   if !py3eval( 'YCM_TEST_SEMANTIC_HIGHLIGHTING_SUPPORTED' )
     throw 'Skipped: semantic highlighting is not supported'

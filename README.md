@@ -928,8 +928,6 @@ to the underlying semantic type of the word, rather than classic syntax
 highlighting based on regular expressions. This can be powerful additional data
 that we can process very quickly.
 
-This feature is only supported in Vim.
-
 For example, here is a function with classic highlighting:
 
 ![highliting-classic](https://user-images.githubusercontent.com/10584846/173137003-a265e8b0-84db-4993-98f0-03ee81b9de94.png)
@@ -945,22 +943,30 @@ per buffer, by setting `b:ycm_enable_semantic_highlighting`.
 
 #### Customising the highlight groups
 
-YCM uses text properties (see `:help text-prop-intro`) for semantic
-highlighting. In order to customise the coloring, you can define the text
-properties that are used.
+YCM uses text properties (see `:help text-prop-intro`) in Vim and extmarks
+(see `:help extmarks`) in Neovim for semantic highlighting. In order to
+customise the coloring, define the corresponding Vim text properties or
+Neovim highlight groups.
 
-If you define a text property named `YCM_HL_<token type>`, then it will be used
-in place of the defaults. The `<token type>` is defined as the Language Server
-Protocol semantic token type, defined in the [LSP Spec](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens).
+If you define a Vim text property or Neovim highlight group named
+`YCM_HL_<token type>`, then it will be used in place of the defaults. The
+`<token type>` is defined by the
+[LSP semantic token specification][lsp-semantic-tokens].
 
 Some servers also use custom values. In this case, YCM prints a warning
 including the token type name that you can customise.
 
-For example, to render `parameter` tokens using the `Normal` highlight group,
-you can do this:
+For example, to render `parameter` tokens using the `Normal` highlight group
+in Vim:
 
 ```viml
 call prop_type_add( 'YCM_HL_parameter', { 'highlight': 'Normal' } )
+```
+
+In Neovim:
+
+```viml
+highlight link YCM_HL_parameter Normal
 ```
 
 More generally, this pattern can be useful for customising the groups:
@@ -980,8 +986,13 @@ let MY_YCM_HIGHLIGHT_GROUP = {
       \ }
 
 for tokenType in keys( MY_YCM_HIGHLIGHT_GROUP )
-  call prop_type_add( 'YCM_HL_' . tokenType,
-                    \ { 'highlight': MY_YCM_HIGHLIGHT_GROUP[ tokenType ] } )
+  if has( 'nvim' )
+    execute 'highlight link YCM_HL_' . tokenType . ' ' .
+          \ MY_YCM_HIGHLIGHT_GROUP[ tokenType ]
+  else
+    call prop_type_add( 'YCM_HL_' . tokenType,
+                      \ { 'highlight': MY_YCM_HIGHLIGHT_GROUP[ tokenType ] } )
+  endif
 endfor
 ```
 
@@ -4049,6 +4060,7 @@ Please note: The YCM maintainers do not specifically endorse nor necessarily hav
 [wiki-troubleshooting]: https://github.com/ycm-core/YouCompleteMe/wiki/Troubleshooting-steps-for-ycmd-server-SHUT-DOWN
 [lsp-examples]: https://github.com/ycm-core/lsp-examples
 [language_server-configuration]: https://github.com/ycm-core/ycmd#language_server-configuration
+[lsp-semantic-tokens]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens
 [diagnostic-echo-virtual-text1]: https://user-images.githubusercontent.com/10584846/185707973-39703699-0263-47d3-82ac-639d52259bea.png
 [diagnostic-echo-virtual-text2]: https://user-images.githubusercontent.com/10584846/185707993-14ff5fd7-c082-4e5a-b825-f1364e619b6a.png
 [jedi-refactor-doc]: https://jedi.readthedocs.io/en/latest/docs/api.html#jedi.Script.extract_variable

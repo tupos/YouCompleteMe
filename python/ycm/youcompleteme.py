@@ -47,6 +47,7 @@ from ycm.client.omni_completion_request import OmniCompletionRequest
 from ycm.client.event_notification import SendEventNotificationAsync
 from ycm.client.shutdown_request import SendShutdownRequest
 from ycm.client.messages_request import MessagesPoll
+from ycm.semantic_highlighting_renderer import SemanticHighlightingSupported
 from ycm.work_done_progress import WorkDoneProgressState
 
 
@@ -835,7 +836,7 @@ class YouCompleteMe:
                       f'  { self._server_stdout }\n'
                       f'  { self._server_stderr }' )
     debug_info += ( '\nSemantic highlighting supported: ' +
-                    str( not vimsupport.VimIsNeovim() ) )
+                    str( SemanticHighlightingSupported() ) )
     debug_info += ( '\nVirtual text supported: ' +
                     str( not vimsupport.VimIsNeovim() ) )
     debug_info += ( '\nPopup windows supported: ' +
