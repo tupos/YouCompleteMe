@@ -84,9 +84,10 @@ class VimSemanticHighlightingRenderer:
     previous_property_id = self._property_id
     self._property_id = _NextTextPropertyID()
     missing_property_types: list[ str ] = []
+    missing_property_type_set: set[ str ] = set()
 
     for property_type, property_range in highlights:
-      if property_type in missing_property_types:
+      if property_type in missing_property_type_set:
         continue
 
       try:
@@ -100,6 +101,7 @@ class VimSemanticHighlightingRenderer:
         if 'E971:' not in str( error ):
           raise
         missing_property_types.append( property_type )
+        missing_property_type_set.add( property_type )
 
     vimsupport.ClearTextProperties(
       buffer_number,
