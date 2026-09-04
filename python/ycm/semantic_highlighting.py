@@ -18,10 +18,12 @@
 
 from ycm.client.semantic_tokens_request import SemanticTokensRequest
 from ycm.client.base_request import BuildRequestData
-from ycm import vimsupport
 from ycm import scrolling_range as sr
-
-import vim
+from ycm import vimsupport
+from ycm.semantic_highlighting_renderer import (
+  CreateSemanticHighlightingRenderer,
+  SemanticHighlight,
+  SemanticHighlightingRenderer )
 
 
 HIGHLIGHT_GROUP: dict[ str, str ] = {
@@ -59,46 +61,37 @@ HIGHLIGHT_GROUP: dict[ str, str ] = {
   'annotation': 'Macro',
 }
 REPORTED_MISSING_TYPES: set[ str ] = set()
+SEMANTIC_HIGHLIGHT_GROUPS: dict[ str, str ] = {
+  'YCM_HL_UNKNOWN': 'WarningMsg',
+  **{
+    f'YCM_HL_{ token_type }': highlight_group
+    for token_type, highlight_group in HIGHLIGHT_GROUP.items()
+  }
+}
 
 
-def Initialise() -> None:
+def Initialise() -> bool:
   if vimsupport.VimIsNeovim():
-    return
-
-  props = vimsupport.GetTextPropertyTypes()
-  if 'YCM_HL_UNKNOWN' not in props:
-    vimsupport.AddTextPropertyType( 'YCM_HL_UNKNOWN',
-                                    highlight = 'WarningMsg',
-                                    priority = 0 )
-
-  for token_type, group in HIGHLIGHT_GROUP.items():
-    prop = f'YCM_HL_{ token_type }'
-    if prop not in props and vimsupport.GetIntValue(
-        f"hlexists( '{ vimsupport.EscapeForVim( group ) }' )" ):
-      vimsupport.AddTextPropertyType( prop,
-                                      highlight = group,
-                                      priority = 0 )
-
-
-# "arbitrary" base id
-NEXT_TEXT_PROP_ID: int = 70784
-
-
-def NextPropID() -> int:
-  global NEXT_TEXT_PROP_ID
-  try:
-    return NEXT_TEXT_PROP_ID
-  finally:
-    NEXT_TEXT_PROP_ID += 1
+    return False
+  return CreateSemanticHighlightingRenderer(
+    SEMANTIC_HIGHLIGHT_GROUPS
+  ).Initialise()
 
 
 
 class SemanticHighlighting( sr.ScrollingBufferRange ):
   """Stores the semantic highlighting state for a Vim buffer"""
 
-  def __init__( self, bufnr: int ) -> None:
-    self._prop_id = NextPropID()
+  def __init__(
+      self,
+      bufnr: int,
+      renderer: SemanticHighlightingRenderer | None = None ) -> None:
     super().__init__( bufnr )
+    self._renderer: SemanticHighlightingRenderer = (
+      renderer
+      if renderer is not None
+      else CreateSemanticHighlightingRenderer( SEMANTIC_HIGHLIGHT_GROUPS )
+    )
 
 
   def _NewRequest(
@@ -114,31 +107,23 @@ class SemanticHighlighting( sr.ScrollingBufferRange ):
     # We requested a snapshot
     tokens = self._latest_response.get( 'tokens', [] )
 
-    prev_prop_id = self._prop_id
-    self._prop_id = NextPropID()
-
+    highlights: list[ SemanticHighlight ] = []
     for token in tokens:
-      prop_type = f"YCM_HL_{ token[ 'type' ] }"
       rng = token[ 'range' ]
       self.GrowRangeIfNeeded( rng )
+      highlights.append( (
+        f"YCM_HL_{ token[ 'type' ] }",
+        rng
+      ) )
 
-      try:
-        vimsupport.AddTextPropertyForRange(
-          self._bufnr,
-          self._prop_id,
-          prop_type,
-          rng
-        )
-      except vim.error as e:
-        if 'E971:' in str( e ): # Text property doesn't exist
-          if token[ 'type' ] not in REPORTED_MISSING_TYPES:
-            REPORTED_MISSING_TYPES.add( token[ 'type' ] )
-            vimsupport.PostVimMessage(
-              f"Token type { token[ 'type' ] } not supported. "
-              f"Define property type { prop_type }. "
-              f"See :help youcompleteme-customising-highlight-groups" )
-        else:
-          raise e
-
-    vimsupport.ClearTextProperties(
-      self._bufnr, prop_id = prev_prop_id )
+    for property_type in self._renderer.Render(
+        self._bufnr,
+        highlights ):
+      token_type = property_type.removeprefix( 'YCM_HL_' )
+      if token_type in REPORTED_MISSING_TYPES:
+        continue
+      REPORTED_MISSING_TYPES.add( token_type )
+      vimsupport.PostVimMessage(
+        f"Token type { token_type } not supported. "
+        f"Define property type { property_type }. "
+        f"See :help youcompleteme-customising-highlight-groups" )
