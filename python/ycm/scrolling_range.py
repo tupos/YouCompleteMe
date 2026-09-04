@@ -37,7 +37,7 @@ class ScrollingBufferRange( object ):
     return self._request is not None and self._request.Done()
 
 
-  def Request( self, force=False ):
+  def Request( self, force: bool = False ) -> bool:
     if self._request and not self.Ready():
       return True
 
@@ -48,7 +48,10 @@ class ScrollingBufferRange( object ):
          vimsupport.VisibleRangeOfBufferOverlaps(
            self._bufnr,
            self._last_requested_range ) ):
-      return False # don't poll
+      # WinScrolled stops the current poller before calling Request(). If the
+      # request completed first, restart the poller so Update() can consume
+      # its response.
+      return self._request is not None
 
     # FIXME: This call is duplicated in the call to VisibleRangeOfBufferOverlaps
     #  - remove the expansion param
