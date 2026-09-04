@@ -385,7 +385,12 @@ function! Test_EmptySearch()
   silent %bwipe!
 endfunction
 
-function! Test_LeaveWindow_CancelSearch()
+function! s:LeaveFinderPrompt()
+  call feedkeys( "\<C-\>\<C-N>\<C-w>w" )
+endfunction
+
+
+function! s:TestLeaveFinderPrompt( InputAction )
   call youcompleteme#test#setup#OpenFile(
         \ '/test/testdata/cpp/finder_test.cc', {} )
 
@@ -400,7 +405,7 @@ function! Test_LeaveWindow_CancelSearch()
 
   let popup_id = -1
 
-  function! PutQuery( ... )
+  function! PutQuery( ... ) closure
     " Wait for the current buffer to be a prompt buffer
     call WaitForAssert( { -> assert_equal( 'prompt', &buftype ) } )
     call WaitForAssert( { -> assert_equal( 'i', mode() ) } )
@@ -408,12 +413,14 @@ function! Test_LeaveWindow_CancelSearch()
     call WaitForAssert( { -> assert_true(
           \ youcompleteme#finder#GetState().id != -1 ) } )
 
-    call feedkeys( "\<C-\>\<C-N>\<C-w>w" )
+    call call( a:InputAction, [] )
   endfunction
 
   " <Leader> is \ - this calls <Plug>(YCMFindSymbolInWorkspace)
   call FeedAndCheckMain( '\\w', funcref( 'PutQuery' ) )
 
+  call WaitForAssert( { ->
+        \ assert_equal( -1, youcompleteme#finder#GetState().id ) } )
   call WaitForAssert( { -> assert_equal( l, winlayout() ) } )
   call WaitForAssert( { -> assert_equal( original_win, winnr() ) } )
   call assert_equal( b, bufnr() )
@@ -426,6 +433,16 @@ function! Test_LeaveWindow_CancelSearch()
 
   delfunct PutQuery
   silent %bwipe!
+endfunction
+
+
+function! Test_LeaveWindow_CancelSearch()
+  call s:TestLeaveFinderPrompt( function( 's:LeaveFinderPrompt' ) )
+endfunction
+
+
+function! YcmTest_ClosePromptWindow_CancelSearch( InputAction )
+  call s:TestLeaveFinderPrompt( a:InputAction )
 endfunction
 
 

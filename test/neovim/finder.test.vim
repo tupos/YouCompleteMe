@@ -12,6 +12,17 @@ execute 'source ' . fnameescape(
       \ expand( '<sfile>:p:h:h' ) . '/lib/finder.vim' )
 
 
+function! s:CloseFinderPrompt()
+  call feedkeys( "\<C-w>q", 'xt' )
+endfunction
+
+
+function! Test_ClosePromptWindow_CancelSearch()
+  call YcmTest_ClosePromptWindow_CancelSearch(
+        \ function( 's:CloseFinderPrompt' ) )
+endfunction
+
+
 function! YcmTest_FinderWindowIsVisible( window_id ) abort
   return a:window_id > 0 && nvim_win_is_valid( a:window_id )
 endfunction

@@ -323,8 +323,11 @@ endfunction
 " Handle the popup closing: jump to the selected item
 function! s:PopupClosed( id, selected ) abort
   stopinsert
-  call win_gotoid( s:find_symbol_status.prompt_winid )
-  silent bwipe!
+
+  let prompt_buffer = s:find_symbol_status.prompt_bufnr
+  if bufexists( prompt_buffer )
+    execute 'silent bwipe! ' . prompt_buffer
+  endif
 
   " Return to original window
   call win_gotoid( s:find_symbol_status.winid )

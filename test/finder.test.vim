@@ -5,6 +5,17 @@ execute 'source ' . fnameescape(
       \ expand( '<sfile>:p:h' ) . '/lib/finder.vim' )
 
 
+function! s:CloseFinderPrompt()
+  call feedkeys( "\<Esc>\<C-w>q" )
+endfunction
+
+
+function! Test_ClosePromptWindow_CancelSearch()
+  call YcmTest_ClosePromptWindow_CancelSearch(
+        \ function( 's:CloseFinderPrompt' ) )
+endfunction
+
+
 function! YcmTest_FinderWindowIsVisible( window_id ) abort
   return get(
         \ popup_getpos( a:window_id ),
