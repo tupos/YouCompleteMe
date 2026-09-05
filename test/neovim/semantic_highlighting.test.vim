@@ -1,6 +1,6 @@
 " This file provides the Neovim-specific adapter for the shared semantic
 " highlighting tests. The actual tests and common setup are in
-" test/lib/semantic_highlighting.vim. The function below translates Neovim
+" test/shared/semantic_highlighting.vim. The function below translates Neovim
 " extmarks into the editor-independent representation used by those tests.
 
 let g:ycm_neovim_ns_id = nvim_create_namespace( 'ycm_id' )
@@ -9,7 +9,7 @@ highlight default link Identifier Normal
 highlight default link Number Normal
 highlight link YCM_HL_ycmTestCustom ErrorMsg
 execute 'source ' . fnameescape(
-      \ expand( '<sfile>:p:h:h' ) . '/lib/semantic_highlighting.vim' )
+      \ expand( '<sfile>:p:h:h' ) . '/shared/semantic_highlighting.vim' )
 
 
 function! YcmTest_GetRenderedSemanticHighlights(

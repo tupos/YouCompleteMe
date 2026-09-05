@@ -1,6 +1,6 @@
 " This file provides the Vim-specific adapter for the shared semantic
 " highlighting tests. The actual tests and common setup are in
-" test/lib/semantic_highlighting.vim.
+" test/shared/semantic_highlighting.vim.
 
 highlight default link Identifier Normal
 highlight default link Number Normal
@@ -9,7 +9,7 @@ call prop_type_add(
       \ 'YCM_HL_ycmTestCustom',
       \ { 'highlight': 'ErrorMsg' } )
 execute 'source ' . fnameescape(
-      \ expand( '<sfile>:p:h' ) . '/lib/semantic_highlighting.vim' )
+      \ expand( '<sfile>:p:h:h' ) . '/shared/semantic_highlighting.vim' )
 
 
 function! YcmTest_GetRenderedSemanticHighlights(

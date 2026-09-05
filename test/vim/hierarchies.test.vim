@@ -1,8 +1,8 @@
 " This file provides the Vim-specific adapter for the shared hierarchy
 " integration tests. The actual tests and common setup are in
-" test/lib/hierarchies.vim.
+" test/shared/hierarchies.vim.
 execute 'source ' . fnameescape(
-      \ expand( '<sfile>:p:h' ) . '/lib/hierarchies.vim' )
+      \ expand( '<sfile>:p:h:h' ) . '/shared/hierarchies.vim' )
 
 
 function! YcmTest_HierarchyWindows() abort

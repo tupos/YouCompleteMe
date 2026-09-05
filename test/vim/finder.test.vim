@@ -1,8 +1,8 @@
 " This file provides the Vim-specific adapter for the shared finder
 " integration tests. The actual tests and common setup are in
-" test/lib/finder.vim.
+" test/shared/finder.vim.
 execute 'source ' . fnameescape(
-      \ expand( '<sfile>:p:h' ) . '/lib/finder.vim' )
+      \ expand( '<sfile>:p:h:h' ) . '/shared/finder.vim' )
 
 
 function! s:CloseFinderPrompt()

@@ -1,6 +1,6 @@
 " This file provides the Neovim-specific adapter for the shared hierarchy
 " integration tests. The actual tests and common setup are in
-" test/lib/hierarchies.vim.
+" test/shared/hierarchies.vim.
 
 let s:repository_directory = fnamemodify(
       \ resolve( expand( '<sfile>:p' ) ),
@@ -9,7 +9,7 @@ execute 'set runtimepath^=' . fnameescape( s:repository_directory )
 execute 'set runtimepath^=' . fnameescape(
       \ s:repository_directory . '/test/lib' )
 execute 'source ' . fnameescape(
-      \ expand( '<sfile>:p:h:h' ) . '/lib/hierarchies.vim' )
+      \ expand( '<sfile>:p:h:h' ) . '/shared/hierarchies.vim' )
 
 
 function! YcmTest_HierarchyWindows() abort

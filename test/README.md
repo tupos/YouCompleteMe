@@ -53,6 +53,21 @@ An individual script or test function can be selected in the same way as with
 ./test/run_neovim_tests neovim/hover.test.vim:Test_Neovim_Hover_Popup_Interface
 ```
 
+## Test layout
+
+The integration tests are organised by responsibility:
+
+* `shared/` contains behavioral test bodies used by both Vim and Neovim.
+* `vim/` contains Vim test entry points and Vim-specific adapters.
+* `neovim/` contains Neovim test entry points and Neovim-specific adapters.
+* `lib/` contains the test runners and reusable test infrastructure. It does
+  not contain behavioral test suites.
+* `testdata/` contains source files and project data used by the tests.
+
+Files named `*.test.vim` are executable test entry points. Shared test bodies
+which are sourced by editor-specific adapters use the `.vim` suffix without
+`.test`.
+
 ## Running the tests in Windows (WSL)
 
 NOTE: This environment isn't officially supported, and the preferred mechanism to run the tests is to use docker.
@@ -108,7 +123,8 @@ The test framework has the following components:
   * Some screendump support functions in `plugin/screendump.vim` (from Vim)
   * Some YCM-specific autoloaded functions in `autoload/youcompleteme/test/*`
 * A script to run the tests, including specific test script and function
-* The actual test scripts in `test/*.test.vim`
+* Editor-specific test entry points in `test/vim/` and `test/neovim/`
+* Shared behavioral test bodies in `test/shared/`
 * CI integration for azure.
 
 # Test Scripts
@@ -145,9 +161,10 @@ function! Test_MyOtherTest()
 endfunction
 ```
 
-Test scripts are placed in `src/test` and are named `*.test.vim`. Each
-test script can contain any number of individual tests, each of which is
-a Vim function named `Test_<test name>`. Test functions are run in
+Test entry points are placed in `test/vim/` and `test/neovim/` and are named
+`*.test.vim`. Shared behavioral test bodies are placed in `test/shared/`.
+Each test script can contain any number of individual tests, each of which
+is a Vim function named `Test_<test name>`. Test functions are run in
 arbitrary order, so must not rely on each other.
 
 Each test script is a fixture, but setup and teardown is done for each and every
@@ -226,7 +243,7 @@ Things that you need to know to write tests effectively:
     or other async callback which performs the actual asserts, and ends by
     calling `feedkeys( "\<ESC>" )` to exit insert mode.
 
-  * Check `completion.test.vim` for an example.
+  * Check `vim/completion.test.vim` for an example.
 
 * Remember that the `assert*` functions don't throw exceptions. They return `0`
   on success, and return nonzero on failure, populating `v:errors`. 
@@ -245,17 +262,20 @@ Things that you need to know to write tests effectively:
 
 `run_vim_tests` takes arguments of the form `<test script>:<test function filter>`.
 
-For example to just run the "MyOtherTest" test in the `mytests.test.vim`:
+Paths are relative to the `test` directory. For example, to run
+`Test_Enough_Screen_Space` from the signature-help suite:
 
 ```
-$ run_vim_tests mytests.test.vim:MyOtherTest
+$ ./test/run_vim_tests \
+    vim/signature_help.test.vim:Test_Enough_Screen_Space
 ```
 
 The filter is a Vim regexp. The same script file can be listed multiple times,
 as in:
 
 ```
-$ run_vim_tests 'mytests.test.vim:MyTest' 'mytests.test.vim:MyOtherTest'
+$ ./test/run_vim_tests 'vim/completion.test.vim:Test_Compl_After_Trigger' \
+    'vim/completion.test.vim:Test_Manual_Trigger'
 ```
 
 # Coverage

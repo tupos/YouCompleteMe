@@ -1,6 +1,6 @@
 " This file provides the Vim-specific adapter for the shared inlay-hints
 " integration tests. The actual tests and common setup are in
-" test/lib/inlay_hints.vim. The functions below translate Vim text properties
+" test/shared/inlay_hints.vim. The functions below translate Vim text properties
 " into the editor-independent representation used by those tests.
 
 let g:ycm_neovim_ns_id = -1
@@ -8,7 +8,7 @@ call prop_type_add(
       \ 'YCM_INLAY_Enum',
       \ { 'highlight': 'Normal' } )
 execute 'source ' . fnameescape(
-      \ expand( '<sfile>:p:h' ) . '/lib/inlay_hints.vim' )
+      \ expand( '<sfile>:p:h:h' ) . '/shared/inlay_hints.vim' )
 
 
 function! YcmTest_GetRenderedInlayHints( buffer_number ) abort

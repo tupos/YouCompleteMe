@@ -1,6 +1,6 @@
 " This file provides the Neovim-specific adapter for the shared finder
 " integration tests. The actual tests and common setup are in
-" test/lib/finder.vim.
+" test/shared/finder.vim.
 
 let s:repository_directory = fnamemodify(
       \ resolve( expand( '<sfile>:p' ) ),
@@ -9,7 +9,7 @@ execute 'set runtimepath^=' . fnameescape( s:repository_directory )
 execute 'set runtimepath^=' . fnameescape(
       \ s:repository_directory . '/test/lib' )
 execute 'source ' . fnameescape(
-      \ expand( '<sfile>:p:h:h' ) . '/lib/finder.vim' )
+      \ expand( '<sfile>:p:h:h' ) . '/shared/finder.vim' )
 
 
 function! s:CloseFinderPrompt()

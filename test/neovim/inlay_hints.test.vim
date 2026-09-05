@@ -1,13 +1,13 @@
 " This file provides the Neovim-specific adapter for the shared inlay-hints
 " integration tests. The actual tests and common setup are in
-" test/lib/inlay_hints.vim. The functions below translate Neovim extmarks
+" test/shared/inlay_hints.vim. The functions below translate Neovim extmarks
 " into the editor-independent representation used by those tests.
 
 let g:ycm_neovim_ns_id = nvim_create_namespace( 'ycm_id' )
 let s:unrelated_namespace = nvim_create_namespace( 'ycm_test_unrelated' )
 highlight link YCM_INLAY_Enum Normal
 execute 'source ' . fnameescape(
-      \ expand( '<sfile>:p:h:h' ) . '/lib/inlay_hints.vim' )
+      \ expand( '<sfile>:p:h:h' ) . '/shared/inlay_hints.vim' )
 
 
 function! YcmTest_GetRenderedInlayHints( buffer_number ) abort
