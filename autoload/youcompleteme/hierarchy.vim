@@ -35,12 +35,11 @@ let s:ingored_keys = [
       \ ]
 
 function! youcompleteme#hierarchy#StartRequest( kind )
-  if !py3eval( 'vimsupport.VimSupportsPopupWindows()' )
+  if !youcompleteme#hierarchy#ui#Supported()
     echo 'Sorry, this feature is not supported in your editor'
     return
   endif
 
-  call youcompleteme#symbol#InitSymbolProperties()
   py3 ycm_state.ResetCurrentHierarchy()
   py3 from ycm.client.command_request import GetRawCommandResponse
   if a:kind == 'call'
@@ -67,7 +66,7 @@ function! s:MenuFilter( winid, key )
     " Root changes if we're showing super-tree of a sub-tree of the root
     " (indicated by the handle being positive)
     let will_change_root = s:lines_and_handles[ s:select - 1 ][ 1 ] > 0
-    call popup_close(
+    call youcompleteme#hierarchy#ui#Close(
           \ s:popup_id,
           \ [ s:select - 1, 'resolve_up', will_change_root ] )
     return 1
@@ -76,13 +75,15 @@ function! s:MenuFilter( winid, key )
     " Root changes if we're showing sub-tree of a super-tree of the root
     " (indicated by the handle being negative)
     let will_change_root = s:lines_and_handles[ s:select - 1 ][ 1 ] < 0
-    call popup_close(
+    call youcompleteme#hierarchy#ui#Close(
           \ s:popup_id,
           \ [ s:select - 1, 'resolve_down', will_change_root ] )
     return 1
   endif
   if a:key == "\<CR>"
-    call popup_close( s:popup_id, [ s:select - 1, 'jump', v:none ] )
+    call youcompleteme#hierarchy#ui#Close(
+          \ s:popup_id,
+          \ [ s:select - 1, 'jump', v:none ] )
     return 1
   endif
   if a:key == "\<Up>" || a:key == "\<C-p>" || a:key == "\<C-k>" || a:key == "k"
@@ -90,10 +91,9 @@ function! s:MenuFilter( winid, key )
     if s:select < 1
       let s:select = 1
     endif
-    call win_execute( s:popup_id,
-                    \ 'call cursor( [' . string( s:select ) . ', 1 ] )' )
-    call win_execute( s:popup_id,
-                    \ 'set cursorline cursorlineopt&' )
+    call youcompleteme#list_ui#SetSelected(
+          \ s:popup_id,
+          \ s:select - 1 )
     return 1
   endif
   if a:key == "\<Down>" || a:key == "\<C-n>" || a:key == "\<C-j>" || a:key == "j"
@@ -101,17 +101,18 @@ function! s:MenuFilter( winid, key )
     if s:select > len( s:lines_and_handles )
       let s:select = len( s:lines_and_handles )
     endif
-    call win_execute( s:popup_id,
-                    \ 'call cursor( [' . string( s:select ) . ', 1 ] )' )
-    call win_execute( s:popup_id,
-                    \ 'set cursorline cursorlineopt&' )
+    call youcompleteme#list_ui#SetSelected(
+          \ s:popup_id,
+          \ s:select - 1 )
     return 1
   endif
   if index( s:ingored_keys, a:key ) >= 0
     return 0
   endif
   " Close the popup on any other key press
-  call popup_close( s:popup_id, [ s:select - 1, 'cancel', v:none ] )
+  call youcompleteme#hierarchy#ui#Close(
+        \ s:popup_id,
+        \ [ s:select - 1, 'cancel', v:none ] )
   if a:key == "\<Esc>" || a:key == "\<C-c>"
     return 1
   endif
@@ -137,25 +138,11 @@ function! s:MenuCallback( winid, result )
 endfunction
 
 function! s:SetUpMenu()
-  let opts = #{
-    \   filter: funcref( 's:MenuFilter' ),
-    \   callback: funcref( 's:MenuCallback' ),
-    \   wrap: 0,
-    \   minwidth: &columns * 90/100,
-    \   maxwidth: &columns * 90/100,
-    \   maxheight: &lines * 75/100,
-    \   scrollbar: 1,
-    \   padding: [ 0, 0, 0, 0 ],
-    \   highlight: 'Normal',
-    \   border: [],
-    \ }
-  if &ambiwidth ==# 'single' && &encoding ==? 'utf-8'
-    let opts[ 'borderchars' ] = [ '─', '│', '─', '│', '╭', '╮', '╯', '╰' ]
-  endif
-
-  let s:popup_id = popup_create( [], opts )
+  let s:popup_id = youcompleteme#hierarchy#ui#Create(
+        \ funcref( 's:MenuFilter' ),
+        \ funcref( 's:MenuCallback' ) )
   let menu_lines = []
-  let popup_width = popup_getpos( s:popup_id ).core_width
+  let popup_width = youcompleteme#list_ui#GetWidth( s:popup_id )
   let tabstop = popup_width / 3
   for [ item, handle ] in s:lines_and_handles
     let indent = repeat( ' ', item.indent )
@@ -167,14 +154,14 @@ function! s:SetUpMenu()
     "   0-based index
     "   1 for the tab character
     let trunc_name = name[ : tabstop - 2 ]
-    let props = []
+    let highlights = []
     let name_pfx_len = len( indent ) + len( item.icon ) + len( item.kind ) + 2
     if len( trunc_name ) > name_pfx_len
-      let props += [
+      let highlights += [
           \ {
-          \   'col': name_pfx_len + 1,
+          \   'column': name_pfx_len + 1,
           \   'length': len( trunc_name ) - name_pfx_len,
-          \   'type': youcompleteme#symbol#GetPropForSymbolKind( item.kind ),
+          \   'group': youcompleteme#symbol#GetPropForSymbolKind( item.kind ),
           \ }
       \ ]
     endif
@@ -182,19 +169,19 @@ function! s:SetUpMenu()
     let file_name = item.filepath .. ':' .. item.line_num
     let trunc_path = file_name[ : tabstop - 2 ]
     if len(trunc_path) > 0
-      let props += [
+      let highlights += [
             \ {
-            \   'col': len(trunc_name) + 2,
+            \   'column': len(trunc_name) + 2,
             \   'length': min( [ len(trunc_path), len( item.filepath ) ] ),
-            \   'type': 'YCM-symbol-file'
+            \   'group': 'YCM-symbol-file'
             \ }
           \ ]
       if len(trunc_path) > len(item.filepath) + 1
-        let props += [
+        let highlights += [
               \ {
-              \   'col': len(trunc_name) + 2 + len(item.filepath) + 1,
+              \   'column': len(trunc_name) + 2 + len(item.filepath) + 1,
               \   'length': min( [ len(trunc_path), len( item.line_num ) ] ),
-              \   'type': 'YCM-symbol-line-num'
+              \   'group': 'YCM-symbol-line-num'
               \ }
             \ ]
       endif
@@ -207,15 +194,20 @@ function! s:SetUpMenu()
           \ .. trunc_path
           \ . "\t"
           \ .. trunc_desc
-    call add( menu_lines, { 'text': line, 'props': props } )
+    call add(
+          \ menu_lines,
+          \ { 'text': line, 'highlights': highlights } )
   endfor
-  call win_execute( s:popup_id,
-                  \ 'setlocal tabstop=' . tabstop )
-  call popup_settext( s:popup_id, menu_lines )
-  call win_execute( s:popup_id,
-                  \ 'call cursor( [' . string( s:select ) . ', 1 ] )' )
-  call win_execute( s:popup_id,
-                  \ 'set cursorline cursorlineopt&' )
+  call youcompleteme#list_ui#SetTabstop(
+        \ s:popup_id,
+        \ tabstop )
+  call youcompleteme#list_ui#SetContents(
+        \ s:popup_id,
+        \ menu_lines,
+        \ 'ycm_hierarchy' )
+  call youcompleteme#list_ui#SetSelected(
+        \ s:popup_id,
+        \ s:select - 1 )
 endfunction
 
 function! s:ResolveItem( choice, direction, will_change_root )
