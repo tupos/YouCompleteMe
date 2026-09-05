@@ -16,9 +16,6 @@
 " along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 
 
-let s:highlight_namespace = nvim_create_namespace( 'ycm_finder' )
-
-
 function! youcompleteme#finder#ui#neovim#Supported() abort
   return has( 'nvim-0.9' )
         \ && exists( '*nvim_open_win' )
@@ -72,13 +69,7 @@ endfunction
 function! youcompleteme#finder#ui#neovim#Create(
       \ initial_text,
       \ closed_callback ) abort
-  for [ highlight_group, default_highlight_group ] in
-        \ items( youcompleteme#symbol#GetHighlightGroups() )
-    execute 'highlight default link '
-          \ . highlight_group
-          \ . ' '
-          \ . default_highlight_group
-  endfor
+  call youcompleteme#list_ui#Initialise()
 
   let buffer_number = nvim_create_buf( v:false, v:true )
   call setbufvar( buffer_number, '&bufhidden', 'wipe' )
@@ -304,53 +295,10 @@ endfunction
 function! youcompleteme#finder#ui#neovim#SetContents(
       \ window_id,
       \ contents ) abort
-  if a:window_id <= 0 || !nvim_win_is_valid( a:window_id )
-    return
-  endif
-
-  let buffer_number = nvim_win_get_buf( a:window_id )
-  if type( a:contents ) == v:t_list
-    let lines = map(
-          \ copy( a:contents ),
-          \ { _, line -> line.text } )
-  else
-    let lines = [ a:contents ]
-  endif
-
-  call setbufvar( buffer_number, '&modifiable', v:true )
-  call nvim_buf_set_lines(
-        \ buffer_number,
-        \ 0,
-        \ -1,
-        \ v:true,
-        \ lines )
-  call setbufvar( buffer_number, '&modifiable', v:false )
-  call nvim_buf_clear_namespace(
-        \ buffer_number,
-        \ s:highlight_namespace,
-        \ 0,
-        \ -1 )
-
-  if type( a:contents ) != v:t_list
-    return
-  endif
-
-  let line_number = 0
-  for line in a:contents
-    for highlight in line.highlights
-      let start_column = highlight.column - 1
-      call nvim_buf_set_extmark(
-            \ buffer_number,
-            \ s:highlight_namespace,
-            \ line_number,
-            \ start_column,
-            \ {
-            \   'end_col': start_column + highlight.length,
-            \   'hl_group': highlight.group,
-            \ } )
-    endfor
-    let line_number += 1
-  endfor
+  call youcompleteme#list_ui#SetContents(
+        \ a:window_id,
+        \ a:contents,
+        \ 'ycm_finder' )
 endfunction
 
 
@@ -371,12 +319,12 @@ endfunction
 
 
 function! youcompleteme#finder#ui#neovim#GetWidth( window_id ) abort
-  return nvim_win_get_width( a:window_id )
+  return youcompleteme#list_ui#GetWidth( a:window_id )
 endfunction
 
 
 function! youcompleteme#finder#ui#neovim#GetHeight( window_id ) abort
-  return nvim_win_get_height( a:window_id )
+  return youcompleteme#list_ui#GetHeight( a:window_id )
 endfunction
 
 
@@ -392,41 +340,9 @@ function! youcompleteme#finder#ui#neovim#SetSelected(
         \ 'ycm_finder_selected',
         \ a:selected )
 
-  if a:selected < 0
-    call nvim_set_option_value(
-          \ 'cursorline',
-          \ v:false,
-          \ { 'win': a:window_id } )
-    return
-  endif
-
-  " Move the cursor so that cursorline highlights the selected item. Also
-  " scroll the window if the selected item is not in view. To make scrolling
-  " feel natural we position the current line at the bottom of the window if
-  " the new current line is below the current viewport, and at the top if the
-  " new current line is above the viewport.
-  let line_number = a:selected + 1
-  let first_line = line( 'w0', a:window_id )
-  let window_height = nvim_win_get_height( a:window_id )
-
-  call nvim_win_set_cursor(
+  call youcompleteme#list_ui#SetSelected(
         \ a:window_id,
-        \ [ line_number, 0 ] )
-
-  if line_number < first_line
-    call win_execute( a:window_id, 'normal! zt' )
-  elseif line_number >= first_line + window_height
-    call win_execute( a:window_id, 'normal! zb' )
-  endif
-
-  call nvim_set_option_value(
-        \ 'cursorlineopt',
-        \ 'both',
-        \ { 'win': a:window_id } )
-  call nvim_set_option_value(
-        \ 'cursorline',
-        \ v:true,
-        \ { 'win': a:window_id } )
+        \ a:selected )
 endfunction
 
 

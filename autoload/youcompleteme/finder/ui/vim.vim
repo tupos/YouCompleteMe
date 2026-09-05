@@ -24,7 +24,7 @@ endfunction
 function! youcompleteme#finder#ui#vim#Create(
       \ initial_text,
       \ closed_callback ) abort
-  call youcompleteme#symbol#InitSymbolProperties()
+  call youcompleteme#list_ui#Initialise()
 
   let options = {
         \ 'padding': [ 1, 2, 1, 2 ],
@@ -81,33 +81,10 @@ endfunction
 function! youcompleteme#finder#ui#vim#SetContents(
       \ window_id,
       \ contents ) abort
-  if type( a:contents ) != v:t_list
-    call popup_settext( a:window_id, a:contents )
-    return
-  endif
-
-  let popup_lines = []
-  for line in a:contents
-    let properties = []
-    for highlight in line.highlights
-      call add(
-            \ properties,
-            \ {
-            \   'col': highlight.column,
-            \   'length': highlight.length,
-            \   'type': highlight.group,
-            \ } )
-    endfor
-
-    call add(
-          \ popup_lines,
-          \ {
-          \   'text': line.text,
-          \   'props': properties,
-          \ } )
-  endfor
-
-  call popup_settext( a:window_id, popup_lines )
+  call youcompleteme#list_ui#SetContents(
+        \ a:window_id,
+        \ a:contents,
+        \ 'ycm_finder' )
 endfunction
 
 
@@ -121,46 +98,21 @@ endfunction
 
 
 function! youcompleteme#finder#ui#vim#GetWidth( window_id ) abort
-  return popup_getpos( a:window_id ).core_width
+  return youcompleteme#list_ui#GetWidth( a:window_id )
 endfunction
 
 
 function! youcompleteme#finder#ui#vim#GetHeight( window_id ) abort
-  return popup_getpos( a:window_id ).core_height
+  return youcompleteme#list_ui#GetHeight( a:window_id )
 endfunction
 
 
 function! youcompleteme#finder#ui#vim#SetSelected(
       \ window_id,
       \ selected ) abort
-  if a:selected < 0
-    call win_execute( a:window_id, 'set nocursorline' )
-    return
-  endif
-
-  " Move the cursor so that cursorline highlights the selected item. Also
-  " scroll the window if the selected item is not in view. To make scrolling
-  " feel natural we position the current line at the bottom of the window if
-  " the new current line is below the current viewport, and at the top if the
-  " new current line is above the viewport.
-  let line_number = a:selected + 1
-  let position = popup_getpos( a:window_id )
-
-  call win_execute(
+  call youcompleteme#list_ui#SetSelected(
         \ a:window_id,
-        \ 'call cursor( [' . string( line_number ) . ', 1] )' )
-
-  if line_number < position.firstline
-    call win_execute( a:window_id, "normal z\<CR>" )
-  elseif line_number >= position.firstline + position.core_height
-    call win_execute( a:window_id, 'normal z-' )
-  endif
-
-  if !getwinvar( a:window_id, '&cursorline' )
-    call win_execute(
-          \ a:window_id,
-          \ 'set cursorline cursorlineopt&' )
-  endif
+        \ a:selected )
 endfunction
 
 
