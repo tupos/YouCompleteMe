@@ -28,6 +28,7 @@ let s:lines_and_handles = v:null
 "  0 means nothing, (Invalid)
 let s:select = -1
 let s:kind = ''
+let s:source_window_id = -1
 
 let s:ingored_keys = [
       \ "\<CursorHold>",
@@ -40,6 +41,7 @@ function! youcompleteme#hierarchy#StartRequest( kind )
     return
   endif
 
+  let s:source_window_id = win_getid()
   py3 ycm_state.ResetCurrentHierarchy()
   py3 from ycm.client.command_request import GetRawCommandResponse
   if a:kind == 'call'
@@ -57,9 +59,25 @@ function! youcompleteme#hierarchy#StartRequest( kind )
     let s:lines_and_handles = lines_and_handles
     let s:kind = a:kind
     let s:select = 1
-    call s:SetUpMenu()
+    call s:CreateMenu()
   endif
 endfunction
+
+
+function! s:ResolveSelectedItem( direction, will_change_root ) abort
+  " Execute the request in the original source window so that YCM builds the
+  " request from the source buffer while the hierarchy window remains visible.
+  call win_execute(
+        \ s:source_window_id,
+        \ 'call s:ResolveItem('
+        \ . string( s:select - 1 )
+        \ . ', '
+        \ . string( a:direction )
+        \ . ', '
+        \ . string( a:will_change_root )
+        \ . ')' )
+endfunction
+
 
 function! s:MenuFilter( winid, key )
   let selected = youcompleteme#list_ui#GetSelected( a:winid )
@@ -72,18 +90,14 @@ function! s:MenuFilter( winid, key )
     " Root changes if we're showing super-tree of a sub-tree of the root
     " (indicated by the handle being positive)
     let will_change_root = s:lines_and_handles[ s:select - 1 ][ 1 ] > 0
-    call youcompleteme#hierarchy#ui#Close(
-          \ s:popup_id,
-          \ [ s:select - 1, 'resolve_up', will_change_root ] )
+    call s:ResolveSelectedItem( 'up', will_change_root )
     return 1
   endif
   if a:key == "\<Tab>"
     " Root changes if we're showing sub-tree of a super-tree of the root
     " (indicated by the handle being negative)
     let will_change_root = s:lines_and_handles[ s:select - 1 ][ 1 ] < 0
-    call youcompleteme#hierarchy#ui#Close(
-          \ s:popup_id,
-          \ [ s:select - 1, 'resolve_down', will_change_root ] )
+    call s:ResolveSelectedItem( 'down', will_change_root )
     return 1
   endif
   if a:key == "\<CR>"
@@ -128,25 +142,37 @@ endfunction
 function! s:MenuCallback( winid, result )
   let operation = a:result[ 1 ]
   let selection = a:result[ 0 ]
-  if operation == 'resolve_down'
-    call s:ResolveItem( selection, 'down', a:result[ 2 ] )
-  elseif operation == 'resolve_up'
-    call s:ResolveItem( selection, 'up', a:result[ 2 ] )
-  else
-    if operation == 'jump'
-      let handle = s:lines_and_handles[ selection ][ 1 ]
-      py3 ycm_state.JumpToHierarchyItem( vimsupport.GetIntValue( "handle" ) )
-    endif
-    py3 ycm_state.ResetCurrentHierarchy()
-    let s:kind = ''
-    let s:select = 1
+  if operation == 'jump'
+    let handle = s:lines_and_handles[ selection ][ 1 ]
+    py3 ycm_state.JumpToHierarchyItem( vimsupport.GetIntValue( "handle" ) )
   endif
+  py3 ycm_state.ResetCurrentHierarchy()
+  let s:kind = ''
+  let s:select = 1
+  let s:source_window_id = -1
 endfunction
 
-function! s:SetUpMenu()
+
+function! s:CreateMenu()
   let s:popup_id = youcompleteme#hierarchy#ui#Create(
         \ funcref( 's:MenuFilter' ),
         \ funcref( 's:MenuCallback' ) )
+  call s:UpdateMenu()
+endfunction
+
+
+function! s:ShowResolving()
+  call youcompleteme#list_ui#SetContents(
+        \ s:popup_id,
+        \ 'Waiting for language server response...',
+        \ 'ycm_hierarchy' )
+  call youcompleteme#hierarchy#ui#UpdateLayout( s:popup_id, 1 )
+  call youcompleteme#list_ui#SetSelected( s:popup_id, -1 )
+  redraw
+endfunction
+
+
+function! s:UpdateMenu()
   let menu_lines = []
   let popup_width = youcompleteme#list_ui#GetWidth( s:popup_id )
   let tabstop = popup_width / 3
@@ -217,12 +243,20 @@ function! s:SetUpMenu()
   call youcompleteme#list_ui#SetSelected(
         \ s:popup_id,
         \ s:select - 1 )
+  redraw
 endfunction
 
 function! s:ResolveItem( choice, direction, will_change_root )
   let handle = s:lines_and_handles[ a:choice ][ 1 ]
-  if py3eval(
-      \ 'ycm_state.ShouldResolveItem( vimsupport.GetIntValue( "handle" ), vim.eval( "a:direction" ) )' )
+  if !py3eval(
+        \ 'ycm_state.ShouldResolveItem( ' .
+        \ 'vimsupport.GetIntValue( "handle" ), ' .
+        \ 'vim.eval( "a:direction" ) )' )
+    return
+  endif
+
+  call s:ShowResolving()
+  try
     let lines_and_handles_with_offset = py3eval(
         \ 'ycm_state.UpdateCurrentHierarchy( ' .
         \ 'vimsupport.GetIntValue( "handle" ), ' .
@@ -246,6 +280,7 @@ function! s:ResolveItem( choice, direction, will_change_root )
     else
       let s:select += lines_and_handles_with_offset[ 1 ]
     endif
-  endif
-  call s:SetUpMenu()
+  finally
+    call s:UpdateMenu()
+  endtry
 endfunction

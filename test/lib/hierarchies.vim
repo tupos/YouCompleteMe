@@ -96,7 +96,9 @@ function! Test_Hierarchy_Selection_Follows_Expanded_Item()
   call feedkeys( "\<S-Tab>", 'xt' )
   call s:WaitForHierarchyLineCount( 2 )
 
-  let window_id = s:HierarchyWindow()
+  " Expansion updates the existing window instead of closing it while waiting
+  " for the language server response.
+  call assert_equal( window_id, s:HierarchyWindow() )
   call assert_equal(
         \ 2,
         \ YcmTest_HierarchyWindowSelectedLine( window_id ) )
