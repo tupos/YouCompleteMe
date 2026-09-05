@@ -72,3 +72,50 @@ function! YcmTest_HierarchyWindowHighlights( window_id ) abort
   endfor
   return highlights
 endfunction
+
+
+function! Test_Hierarchy_Vim_Redraws_Selection_After_Expansion()
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/hierarchies.cc',
+        \ {} )
+  setlocal cursorline
+  call cursor( [ 13, 8 ] )
+
+  call youcompleteme#hierarchy#StartRequest( 'type' )
+  call WaitForAssert( { ->
+        \ assert_equal( 1, len( popup_list() ) ) } )
+
+  let window_id = popup_list()[ 0 ]
+  redraw
+  let position = popup_getpos( window_id )
+  let selected_attribute =
+        \ screenattr( position.core_line, position.core_col )
+
+  " B0 is inserted above B1. The popup cursor and its visible cursorline must
+  " both follow B1 from the first row to the second row.
+  call feedkeys( "\<S-Tab>", 'xt' )
+  call WaitForAssert( { ->
+        \ assert_equal(
+        \   2,
+        \   len(
+        \     getbufline(
+        \       winbufnr( popup_list()[ 0 ] ),
+        \       1,
+        \       '$' ) ) ) } )
+
+  let window_id = popup_list()[ 0 ]
+  call assert_equal( 2, getcurpos( window_id )[ 1 ] )
+  let position = popup_getpos( window_id )
+  call assert_notequal(
+        \ selected_attribute,
+        \ screenattr( position.core_line, position.core_col ) )
+  call assert_equal(
+        \ selected_attribute,
+        \ screenattr( position.core_line + 1, position.core_col ) )
+
+  call feedkeys( "\<C-c>", 'xt' )
+  call WaitForAssert( { ->
+        \ assert_equal( 0, len( popup_list() ) ) } )
+
+  %bwipe!
+endfunction

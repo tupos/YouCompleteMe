@@ -59,4 +59,5 @@ function! youcompleteme#hierarchy#ui#vim#Close(
       \ window_id,
       \ result ) abort
   call popup_close( a:window_id, a:result )
+  redraw
 endfunction
