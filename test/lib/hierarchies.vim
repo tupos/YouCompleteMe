@@ -6,6 +6,8 @@
 "   YcmTest_HierarchyWindowSelectedLine( window_id )
 "   YcmTest_HierarchyWindowFirstVisibleLine( window_id )
 "   YcmTest_HierarchyWindowHeight( window_id )
+"   YcmTest_SetHierarchyWindowHeight( window_id, height )
+"   YcmTest_CloseHierarchyWindow( window_id )
 "   YcmTest_HierarchyWindowHighlights( window_id )
 
 
@@ -210,6 +212,274 @@ function! Test_Type_Hierarchy()
   call s:AssertHierarchyLine( 2, '^    +Struct: B0.*:12' )
   call s:AssertHierarchyLine( 3, '^  -Struct: B1.*:13' )
   call s:AssertHierarchyLine( 4, '^-Struct: D1.*:16' )
+
+  call feedkeys( "\<C-c>", 'xt' )
+  call s:WaitForHierarchyClosed()
+
+  %bwipe!
+endfunction
+
+
+function! Test_Hierarchy_Enter_Jumps_To_Selected_Item()
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/hierarchies.cc',
+        \ {} )
+  let source_buffer = bufnr()
+  call cursor( [ 13, 8 ] )
+
+  call youcompleteme#hierarchy#StartRequest( 'type' )
+  call s:WaitForHierarchyLineCount( 1 )
+
+  call feedkeys( "\<Tab>", 'xt' )
+  call s:WaitForHierarchyLineCount( 2 )
+
+  let window_id = s:HierarchyWindow()
+  call feedkeys( "\<Down>", 'xt' )
+  call assert_equal(
+        \ 2,
+        \ YcmTest_HierarchyWindowSelectedLine( window_id ) )
+
+  call feedkeys( "\<CR>", 'xt' )
+  call s:WaitForHierarchyClosed()
+  call assert_equal( source_buffer, bufnr() )
+  call WaitForAssert(
+        \ { -> assert_equal( [ 0, 16, 8, 0 ], getpos( '.' ) ) } )
+
+  %bwipe!
+endfunction
+
+
+function! Test_Hierarchy_Cancel_Keys()
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/hierarchies.cc',
+        \ {} )
+  call cursor( [ 13, 8 ] )
+
+  call youcompleteme#hierarchy#StartRequest( 'type' )
+  call s:WaitForHierarchyLineCount( 1 )
+
+  call feedkeys( "\<Esc>", 'xt' )
+  call s:WaitForHierarchyClosed()
+  call assert_equal( [ 0, 13, 8, 0 ], getpos( '.' ) )
+
+  call youcompleteme#hierarchy#StartRequest( 'type' )
+  call s:WaitForHierarchyLineCount( 1 )
+
+  " An unrelated key closes the hierarchy and is processed by the source
+  " window. In Normal mode, `l` moves the cursor one column to the right.
+  call feedkeys( 'l', 'xt' )
+  call s:WaitForHierarchyClosed()
+  call assert_equal( [ 0, 13, 9, 0 ], getpos( '.' ) )
+
+  %bwipe!
+endfunction
+
+
+function! Test_Hierarchy_Movement_Keys_And_Clamping()
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/hierarchies.cc',
+        \ {} )
+  call cursor( [ 13, 8 ] )
+
+  call youcompleteme#hierarchy#StartRequest( 'type' )
+  call s:WaitForHierarchyLineCount( 1 )
+  call feedkeys( "\<Tab>", 'xt' )
+  call s:WaitForHierarchyLineCount( 2 )
+
+  let window_id = s:HierarchyWindow()
+  call assert_equal(
+        \ 1,
+        \ YcmTest_HierarchyWindowSelectedLine( window_id ) )
+
+  " Every upward movement key clamps at the first item.
+  for key in [ "\<Up>", "\<C-p>", "\<C-k>", 'k' ]
+    call feedkeys( key, 'xt' )
+    call assert_equal(
+          \ 1,
+          \ YcmTest_HierarchyWindowSelectedLine( window_id ) )
+  endfor
+
+  " Every downward movement key selects the second item, and every
+  " corresponding upward key returns to the first item.
+  for [ down_key, up_key ] in [
+        \ [ "\<Down>", "\<Up>" ],
+        \ [ "\<C-n>", "\<C-p>" ],
+        \ [ "\<C-j>", "\<C-k>" ],
+        \ [ 'j', 'k' ],
+        \ ]
+    call feedkeys( down_key, 'xt' )
+    call assert_equal(
+          \ 2,
+          \ YcmTest_HierarchyWindowSelectedLine( window_id ) )
+    call feedkeys( up_key, 'xt' )
+    call assert_equal(
+          \ 1,
+          \ YcmTest_HierarchyWindowSelectedLine( window_id ) )
+  endfor
+
+  call feedkeys( "\<Down>", 'xt' )
+  " Every downward movement key clamps at the last item.
+  for key in [ "\<Down>", "\<C-n>", "\<C-j>", 'j' ]
+    call feedkeys( key, 'xt' )
+    call assert_equal(
+          \ 2,
+          \ YcmTest_HierarchyWindowSelectedLine( window_id ) )
+  endfor
+
+  call feedkeys( "\<C-c>", 'xt' )
+  call s:WaitForHierarchyClosed()
+
+  %bwipe!
+endfunction
+
+
+function! Test_Hierarchy_Scrolls_To_Selected_Item()
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/hierarchies.cc',
+        \ {} )
+  call cursor( [ 1, 5 ] )
+
+  call youcompleteme#hierarchy#StartRequest( 'call' )
+  call s:WaitForHierarchyLineCount( 1 )
+  call feedkeys( "\<Tab>", 'xt' )
+  call s:WaitForHierarchyLineCount( 4 )
+  call feedkeys( "\<Down>\<Tab>", 'xt' )
+  call s:WaitForHierarchyLineCount( 5 )
+
+  let window_id = s:HierarchyWindow()
+  call YcmTest_SetHierarchyWindowHeight( window_id, 2 )
+  call WaitForAssert( { ->
+        \ assert_equal(
+        \   2,
+        \   YcmTest_HierarchyWindowHeight( window_id ) ) } )
+  call assert_equal(
+        \ 1,
+        \ YcmTest_HierarchyWindowFirstVisibleLine( window_id ) )
+
+  " The second item is initially selected. Moving to the fifth item scrolls
+  " it to the bottom of the two-line viewport.
+  call feedkeys( repeat( "\<Down>", 3 ), 'xt' )
+  call assert_equal(
+        \ 5,
+        \ YcmTest_HierarchyWindowSelectedLine( window_id ) )
+  call assert_equal(
+        \ 4,
+        \ YcmTest_HierarchyWindowFirstVisibleLine( window_id ) )
+
+  " Moving back to the first item scrolls it to the top of the viewport.
+  call feedkeys( repeat( "\<Up>", 4 ), 'xt' )
+  call assert_equal(
+        \ 1,
+        \ YcmTest_HierarchyWindowSelectedLine( window_id ) )
+  call assert_equal(
+        \ 1,
+        \ YcmTest_HierarchyWindowFirstVisibleLine( window_id ) )
+
+  call feedkeys( "\<C-c>", 'xt' )
+  call s:WaitForHierarchyClosed()
+
+  %bwipe!
+endfunction
+
+
+function! Test_Hierarchy_Highlights()
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/hierarchies.cc',
+        \ {} )
+  call cursor( [ 13, 8 ] )
+
+  call youcompleteme#hierarchy#StartRequest( 'type' )
+  call s:WaitForHierarchyLineCount( 1 )
+  call feedkeys( "\<Tab>", 'xt' )
+  call s:WaitForHierarchyLineCount( 2 )
+
+  let window_id = s:HierarchyWindow()
+  call assert_equal(
+        \ [
+        \   {
+        \     'line': 1,
+        \     'column': 10,
+        \     'length': 2,
+        \     'group': 'YCM-symbol-Struct',
+        \   },
+        \   {
+        \     'line': 1,
+        \     'column': 13,
+        \     'length': 14,
+        \     'group': 'YCM-symbol-file',
+        \   },
+        \   {
+        \     'line': 1,
+        \     'column': 28,
+        \     'length': 2,
+        \     'group': 'YCM-symbol-line-num',
+        \   },
+        \   {
+        \     'line': 2,
+        \     'column': 12,
+        \     'length': 2,
+        \     'group': 'YCM-symbol-Struct',
+        \   },
+        \   {
+        \     'line': 2,
+        \     'column': 15,
+        \     'length': 14,
+        \     'group': 'YCM-symbol-file',
+        \   },
+        \   {
+        \     'line': 2,
+        \     'column': 30,
+        \     'length': 2,
+        \     'group': 'YCM-symbol-line-num',
+        \   },
+        \ ],
+        \ YcmTest_HierarchyWindowHighlights( window_id ) )
+
+  call feedkeys( "\<C-c>", 'xt' )
+  call s:WaitForHierarchyClosed()
+
+  %bwipe!
+endfunction
+
+
+function! Test_Hierarchy_No_Results_Opens_No_Window()
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/hierarchies.cc',
+        \ {} )
+  call cursor( [ 2, 1 ] )
+
+  for kind in [ 'call', 'type' ]
+    call youcompleteme#hierarchy#StartRequest( kind )
+    call assert_equal( [], YcmTest_HierarchyWindows() )
+  endfor
+
+  let messages = execute( 'messages' )
+  call assert_match( 'No call hierarchy found', messages )
+  call assert_match( 'No type hierarchy found', messages )
+  messages clear
+
+  %bwipe!
+endfunction
+
+
+function! Test_Hierarchy_External_Close_Allows_Reopen()
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/hierarchies.cc',
+        \ {} )
+  call cursor( [ 13, 8 ] )
+
+  call youcompleteme#hierarchy#StartRequest( 'type' )
+  call s:WaitForHierarchyLineCount( 1 )
+  let first_window = s:HierarchyWindow()
+
+  call YcmTest_CloseHierarchyWindow( first_window )
+  call s:WaitForHierarchyClosed()
+  call assert_equal( [ 0, 13, 8, 0 ], getpos( '.' ) )
+
+  " The hierarchy remains usable after its window is closed externally.
+  call youcompleteme#hierarchy#StartRequest( 'type' )
+  call s:WaitForHierarchyLineCount( 1 )
+  call assert_notequal( first_window, s:HierarchyWindow() )
 
   call feedkeys( "\<C-c>", 'xt' )
   call s:WaitForHierarchyClosed()

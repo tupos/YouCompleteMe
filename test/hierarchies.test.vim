@@ -33,6 +33,21 @@ function! YcmTest_HierarchyWindowHeight( window_id ) abort
 endfunction
 
 
+function! YcmTest_SetHierarchyWindowHeight( window_id, height ) abort
+  call popup_setoptions(
+        \ a:window_id,
+        \ {
+        \   'minheight': a:height,
+        \   'maxheight': a:height,
+        \ } )
+endfunction
+
+
+function! YcmTest_CloseHierarchyWindow( window_id ) abort
+  call popup_close( a:window_id )
+endfunction
+
+
 function! YcmTest_HierarchyWindowHighlights( window_id ) abort
   let highlights = []
   let buffer_number = winbufnr( a:window_id )
