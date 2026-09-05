@@ -315,10 +315,7 @@ func FinishTesting()
                 \ 'messages',
                 \ 's' )
 
-  if exists( '$COVERAGE' ) && pyxeval( '_cov is not None' )
-    pyx _cov.stop()
-    pyx _cov.save()
-  endif
+  call youcompleteme#test#coverage#Stop()
 
   if s:fail > 0
     cquit!
@@ -360,28 +357,7 @@ if argc() > 1
   let s:tests = filter(s:tests, 'v:val =~ argv(1)')
 endif
 
-pyx <<EOF
-def _InitCoverage():
-  try:
-    import coverage
-  except ImportError:
-    return None
-
-  cov = coverage.Coverage( data_file='.coverage.python', data_suffix = True )
-  cov.start()
-  return cov
-
-import os
-if 'COVERAGE' in os.environ:
-  _cov = _InitCoverage()
-EOF
-
-" Init covimerage
-if exists( '$COVERAGE' )
-  profile start .vim_profile
-  exe 'profile! file */youcompleteme.vim'
-  exe 'profile! file */youcompleteme/**.vim'
-endif
+call youcompleteme#test#coverage#Start( '.vim_profile' )
 
 " Execute the tests in alphabetical order.
 for s:test in sort(s:tests)

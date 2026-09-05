@@ -280,25 +280,27 @@ $ ./test/run_vim_tests 'vim/completion.test.vim:Test_Compl_After_Trigger' \
 
 # Coverage
 
-The test suite supports `covimerage` coverage testing. Just set the `COVERAGE`
-environment variable when running `run_vim_tests`.
+The Vim and Neovim integration test suites support `covimerage` coverage
+testing. Set the `COVERAGE` environment variable when running
+`run_vim_tests` or `run_neovim_tests`.
 
 This generates coverage for both the python code and the vimscript code.
 
-For python, there is some initialisation code in `run_test.vim` which starts up
-`coverage` and saves the result to `.coverage.python`.
+For python, the shared coverage helper starts `coverage` and saves the result
+to `.coverage.python`.
 
-For vim script, we use `covimerage` which takes the vim `:profile` data (also
-initialised in `run_test.vim`) and converts it to `coverage`-style data in
-`.coverage.vim` (this is done by `run_vim_tests` after running all the tests).
+For vim script, `covimerage` takes the editor's `:profile` data and converts it
+to `coverage`-style data in `.coverage.vim` or `.coverage.neovim`. This is done
+by the corresponding test runner after running all the tests.
 
 Finally, we upload that data to `codecov`. This combines `.coverage.python` and
-`.coverage.vim` into `.coverage` and uploads it.
+the editor-specific Vimscript coverage into `.coverage` and uploads it.
 
 To get a local summary:
 
 * `pip install --user -r python/test_requirements.txt`
-* `COVERAGE=true ./test/run_vim_tests`
+* `COVERAGE=true ./test/run_vim_tests` or
+  `COVERAGE=true ./test/run_neovim_tests`
 * `coverage combine -a`
 * `coverage report` or `coverage html`
 

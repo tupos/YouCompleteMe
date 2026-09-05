@@ -26,6 +26,8 @@ function! s:FinishTesting() abort
                 \ ( s:done == 1 ? ' test' : ' tests' ) ]
   call writefile( summary + s:errors, 'messages' )
 
+  call youcompleteme#test#coverage#Stop()
+
   if !empty( s:errors )
     call writefile( s:errors, 'test.log' )
     echo len( s:errors ) . ' FAILED'
@@ -126,6 +128,8 @@ if argc() > 1
         \ s:tests,
         \ 'v:val =~ argv( 1 )' )
 endif
+
+call youcompleteme#test#coverage#Start( '.neovim_profile' )
 
 for s:test in sort( s:tests )
   call s:RunTest( s:test )

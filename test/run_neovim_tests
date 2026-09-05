@@ -88,10 +88,21 @@ for test_spec in "${TESTS[@]}"; do
     fi
   done
 
+  if [ -n "${COVERAGE}" ]; then
+    covimerage write_coverage --append \
+                              --source "$(pwd)/.." \
+                              --data-file .coverage.neovim \
+                              .neovim_profile
+  fi
+
   rm -f "$result_file"
 done
 
 echo "Done running tests"
+
+if [ -n "${COVERAGE}" ]; then
+  mv .coverage.* ../
+fi
 
 popd > /dev/null || exit 1
 

@@ -46,23 +46,40 @@ jobs:
         name: "${{ runner.os }}-3.12-${{ matrix.python-arch }}"
         token: ${{ secrets.CODECOV_TOKEN }}
 
-  vim-tests:
+  editor-tests:
     strategy:
       fail-fast: false
       matrix:
-        vim: [ 'new', 'old' ]
-        arch: [ 'x86_64' ]
+        include:
+          - editor: vim
+            version: new
+            arch: x86_64
+            name: Vim tests - new
+          - editor: vim
+            version: old
+            arch: x86_64
+            name: Vim tests - old
+          - editor: neovim
+            version: stable
+            arch: x86_64
+            name: Neovim tests - stable
     runs-on: ubuntu-24.04
     container: 'youcompleteme/ycm-vim-${{ matrix.arch }}-py3:test'
     env:
       COVERAGE: true
       YCM_TEST_STDOUT: true
-    name: "Vim tests - ${{ matrix.vim }}"
+    name: "${{ matrix.name }}"
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
         fetch-depth: 0
+    - name: Install Neovim
+      if: matrix.editor == 'neovim'
+      uses: rhysd/action-setup-vim@v1
+      with:
+        version: ${{ matrix.version }}
+        neovim: true
     - name: Install dependencies
       run: sudo -H pip3 install --break-system-packages -r python/test_requirements.txt
     - name: Install Java
@@ -74,15 +91,18 @@ jobs:
       run: python3 ./install.py --force-sudo --ts-completer --clangd-completer --java-completer
     - name: Run tests in old vim
       # System vim should be oldest supported.
-      if: matrix.vim == 'old'
+      if: matrix.editor == 'vim' && matrix.version == 'old'
       run: ./test/run_vim_tests --vim /usr/bin/vim
     - name: Run tests in new vim
-      if: matrix.vim == 'new'
+      if: matrix.editor == 'vim' && matrix.version == 'new'
       run: ./test/run_vim_tests
+    - name: Run tests in Neovim
+      if: matrix.editor == 'neovim'
+      run: ./test/run_neovim_tests
     - name: Combine and summarise coverage
       run: coverage combine && coverage xml
     - name: Upload coverage data
       uses: codecov/codecov-action@v4
       with:
-        name: "vim-tests-${{ matrix.vim }}"
+        name: "${{ matrix.editor }}-tests-${{ matrix.version }}"
         token: ${{ secrets.CODECOV_TOKEN }}
