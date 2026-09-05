@@ -31,6 +31,15 @@ function! youcompleteme#list_ui#vim#GetHeight( window_id ) abort
 endfunction
 
 
+function! youcompleteme#list_ui#vim#GetSelected( window_id ) abort
+  let line_number = getcurpos( a:window_id )[ 1 ]
+  if line_number <= 0
+    return -1
+  endif
+  return line_number - 1
+endfunction
+
+
 function! youcompleteme#list_ui#vim#SetContents(
       \ window_id,
       \ contents,

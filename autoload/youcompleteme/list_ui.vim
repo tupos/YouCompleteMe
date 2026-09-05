@@ -45,6 +45,14 @@ function! youcompleteme#list_ui#GetHeight( window_id ) abort
 endfunction
 
 
+function! youcompleteme#list_ui#GetSelected( window_id ) abort
+  if s:is_neovim
+    return youcompleteme#list_ui#neovim#GetSelected( a:window_id )
+  endif
+  return youcompleteme#list_ui#vim#GetSelected( a:window_id )
+endfunction
+
+
 function! youcompleteme#list_ui#SetContents(
       \ window_id,
       \ contents,

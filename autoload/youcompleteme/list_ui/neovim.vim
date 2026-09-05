@@ -37,6 +37,15 @@ function! youcompleteme#list_ui#neovim#GetHeight( window_id ) abort
 endfunction
 
 
+function! youcompleteme#list_ui#neovim#GetSelected( window_id ) abort
+  if a:window_id <= 0 || !nvim_win_is_valid( a:window_id )
+    return -1
+  endif
+
+  return nvim_win_get_cursor( a:window_id )[ 0 ] - 1
+endfunction
+
+
 function! youcompleteme#list_ui#neovim#SetContents(
       \ window_id,
       \ contents,

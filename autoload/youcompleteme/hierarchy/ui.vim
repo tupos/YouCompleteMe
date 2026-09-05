@@ -22,7 +22,7 @@ let s:is_neovim = has( 'nvim' )
 
 function! youcompleteme#hierarchy#ui#Supported() abort
   if s:is_neovim
-    return v:false
+    return youcompleteme#hierarchy#ui#neovim#Supported()
   endif
   return youcompleteme#hierarchy#ui#vim#Supported()
 endfunction
@@ -32,7 +32,9 @@ function! youcompleteme#hierarchy#ui#Create(
       \ key_handler,
       \ closed_callback ) abort
   if s:is_neovim
-    return -1
+    return youcompleteme#hierarchy#ui#neovim#Create(
+          \ a:key_handler,
+          \ a:closed_callback )
   endif
   return youcompleteme#hierarchy#ui#vim#Create(
         \ a:key_handler,
@@ -40,10 +42,24 @@ function! youcompleteme#hierarchy#ui#Create(
 endfunction
 
 
+function! youcompleteme#hierarchy#ui#UpdateLayout(
+      \ window_id,
+      \ line_count ) abort
+  if s:is_neovim
+    call youcompleteme#hierarchy#ui#neovim#UpdateLayout(
+          \ a:window_id,
+          \ a:line_count )
+  endif
+endfunction
+
+
 function! youcompleteme#hierarchy#ui#Close(
       \ window_id,
       \ result ) abort
   if s:is_neovim
+    call youcompleteme#hierarchy#ui#neovim#Close(
+          \ a:window_id,
+          \ a:result )
     return
   endif
   call youcompleteme#hierarchy#ui#vim#Close(

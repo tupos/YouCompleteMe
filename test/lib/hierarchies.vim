@@ -9,6 +9,9 @@
 "   YcmTest_SetHierarchyWindowHeight( window_id, height )
 "   YcmTest_CloseHierarchyWindow( window_id )
 "   YcmTest_HierarchyWindowHighlights( window_id )
+"   YcmTest_HierarchyWindowSelectionHighlight(
+"       window_id, line_number )
+"   YcmTest_HierarchyUnknownKeyCloses()
 
 
 function! SetUp()
@@ -68,6 +71,50 @@ function! s:WaitForHierarchyClosed() abort
         \ assert_equal(
         \   0,
         \   len( YcmTest_HierarchyWindows() ) ) } )
+endfunction
+
+
+function! Test_Hierarchy_Selection_Follows_Expanded_Item()
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/hierarchies.cc',
+        \ {} )
+  setlocal cursorline
+  call cursor( [ 13, 8 ] )
+
+  call youcompleteme#hierarchy#StartRequest( 'type' )
+  call s:WaitForHierarchyLineCount( 1 )
+
+  let window_id = s:HierarchyWindow()
+  redraw
+  let selected_highlight =
+        \ YcmTest_HierarchyWindowSelectionHighlight(
+        \   window_id,
+        \   1 )
+
+  " B0 is inserted above B1. The popup cursor and its visible cursorline must
+  " both follow B1 from the first row to the second row.
+  call feedkeys( "\<S-Tab>", 'xt' )
+  call s:WaitForHierarchyLineCount( 2 )
+
+  let window_id = s:HierarchyWindow()
+  call assert_equal(
+        \ 2,
+        \ YcmTest_HierarchyWindowSelectedLine( window_id ) )
+  call assert_notequal(
+        \ selected_highlight,
+        \ YcmTest_HierarchyWindowSelectionHighlight(
+        \   window_id,
+        \   1 ) )
+  call assert_equal(
+        \ selected_highlight,
+        \ YcmTest_HierarchyWindowSelectionHighlight(
+        \   window_id,
+        \   2 ) )
+
+  call feedkeys( "\<C-c>", 'xt' )
+  call s:WaitForHierarchyClosed()
+
+  %bwipe!
 endfunction
 
 
@@ -137,7 +184,9 @@ function! Test_Call_Hierarchy()
   call s:AssertHierarchyLine( 3, '^+Function: h' )
 
   " silent, because h has no incoming calls.
-  silent call feedkeys( "\<S-Tab>\<Tab>", 'xt' )
+  silent call feedkeys( "\<S-Tab>", 'xt' )
+  call s:WaitForHierarchyLineCount( 3 )
+  silent call feedkeys( "\<Tab>", 'xt' )
   call s:WaitForHierarchyLineCount( 3 )
   call s:AssertHierarchyLine( 1, '^  +Function: g' )
   call s:AssertHierarchyLine( 2, '^  +Function: f' )
@@ -205,7 +254,9 @@ function! Test_Type_Hierarchy()
   call s:AssertHierarchyLine( 3, '^+Struct: D1.*:16' )
 
   " silent, because there are no subtypes of D1.
-  silent call feedkeys( "\<Tab>\<Up>\<S-Tab>", 'xt' )
+  silent call feedkeys( "\<Tab>", 'xt' )
+  call s:WaitForHierarchyLineCount( 3 )
+  call feedkeys( "\<Up>\<S-Tab>", 'xt' )
   " Expansion after re-rooting works.
   call s:WaitForHierarchyLineCount( 4 )
   call s:AssertHierarchyLine( 1, '^  +Struct: B0.*:12' )
@@ -262,14 +313,30 @@ function! Test_Hierarchy_Cancel_Keys()
   call s:WaitForHierarchyClosed()
   call assert_equal( [ 0, 13, 8, 0 ], getpos( '.' ) )
 
+  let source_window = win_getid()
   call youcompleteme#hierarchy#StartRequest( 'type' )
   call s:WaitForHierarchyLineCount( 1 )
 
-  " An unrelated key closes the hierarchy and is processed by the source
-  " window. In Normal mode, `l` moves the cursor one column to the right.
-  call feedkeys( 'l', 'xt' )
-  call s:WaitForHierarchyClosed()
-  call assert_equal( [ 0, 13, 9, 0 ], getpos( '.' ) )
+  if YcmTest_HierarchyUnknownKeyCloses()
+    " Vim's popup filter closes the hierarchy and passes an unrelated key to
+    " the source window. In Normal mode, `l` moves the source cursor right.
+    call feedkeys( 'l', 'xt' )
+    call s:WaitForHierarchyClosed()
+    call assert_equal( [ 0, 13, 9, 0 ], getpos( '.' ) )
+  else
+    " Neovim uses a focused modal window. Unmapped Normal-mode commands act
+    " inside that window instead of closing it or reaching the source window.
+    let hierarchy_window = s:HierarchyWindow()
+    call feedkeys( 'l', 'xt' )
+    call assert_equal( hierarchy_window, win_getid() )
+    call assert_equal( 1, len( YcmTest_HierarchyWindows() ) )
+
+    " `q` is the conventional Neovim mapping for closing a modal window.
+    call feedkeys( 'q', 'xt' )
+    call s:WaitForHierarchyClosed()
+    call assert_equal( source_window, win_getid() )
+    call assert_equal( [ 0, 13, 8, 0 ], getpos( '.' ) )
+  endif
 
   %bwipe!
 endfunction
@@ -352,12 +419,20 @@ function! Test_Hierarchy_Scrolls_To_Selected_Item()
         \ assert_equal(
         \   2,
         \   YcmTest_HierarchyWindowHeight( window_id ) ) } )
-  call assert_equal(
-        \ 1,
-        \ YcmTest_HierarchyWindowFirstVisibleLine( window_id ) )
+  " The second item is initially selected and remains visible after the
+  " viewport is resized. Vim and Neovim may choose a different initial top
+  " line while preserving that invariant.
+  let first_visible_line =
+        \ YcmTest_HierarchyWindowFirstVisibleLine( window_id )
+  let selected_line =
+        \ YcmTest_HierarchyWindowSelectedLine( window_id )
+  call assert_true( first_visible_line <= selected_line )
+  call assert_true(
+        \ selected_line <
+        \ first_visible_line + YcmTest_HierarchyWindowHeight( window_id ) )
 
-  " The second item is initially selected. Moving to the fifth item scrolls
-  " it to the bottom of the two-line viewport.
+  " Moving to the fifth item scrolls it to the bottom of the two-line
+  " viewport.
   call feedkeys( repeat( "\<Down>", 3 ), 'xt' )
   call assert_equal(
         \ 5,

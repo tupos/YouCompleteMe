@@ -1892,8 +1892,6 @@ prompt buffer window.
 
 ### Type/Call Hierarchy
 
-***This feature requires Vim and is not supported in Neovim***
-
 **NOTE**: This feature is highly experimental and offered in the hope that it is
 useful. Please help us by reporting issues and offering feedback.
 
@@ -1904,6 +1902,8 @@ are supported:
   of the symbol under cursor. Expand down to subtypes and up to supertypes.
 * Call hierarchy `<Plug>(YCMCallHierarchy)`: Display callees and callers of
   the symbol under cursor. Expand down to callers and up to callees.
+
+In Neovim, this feature requires Neovim 0.9 or later.
 
 Take a look at this [![asciicast](https://asciinema.org/a/659925.svg)](https://asciinema.org/a/659925)
 for brief demo.
@@ -1937,7 +1937,11 @@ When the hierarchy is displayed, the following keys are intercepted:
 * `<CR>`: Jump to the symbol currently selected.
 * `<Down>`, `<C-n>`, `<C-j>`, `j`: Select the next item
 * `<Up>`, `<C-p>`, `<C-k>`, `k`; Select the previous item
-* Any other key: closes the popup without jumping to any location
+* `<Esc>`, `<C-c>`: Close the hierarchy without jumping to any location.
+* In Vim, any other key closes the hierarchy and is then processed by the
+  source window.
+* In Neovim, `q` closes the hierarchy. Other unmapped keys act normally in the
+  hierarchy window.
 
 **Note:** you might think the call hierarchy tree is inverted, but we think
 this way round is more intuitive because this is the typical way that call

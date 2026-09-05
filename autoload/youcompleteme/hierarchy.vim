@@ -62,6 +62,12 @@ function! youcompleteme#hierarchy#StartRequest( kind )
 endfunction
 
 function! s:MenuFilter( winid, key )
+  let selected = youcompleteme#list_ui#GetSelected( a:winid )
+  if selected >= 0 && selected < len( s:lines_and_handles )
+    " Keep the controller selection in sync with native editor motions.
+    let s:select = selected + 1
+  endif
+
   if a:key == "\<S-Tab>"
     " Root changes if we're showing super-tree of a sub-tree of the root
     " (indicated by the handle being positive)
@@ -83,7 +89,7 @@ function! s:MenuFilter( winid, key )
   if a:key == "\<CR>"
     call youcompleteme#hierarchy#ui#Close(
           \ s:popup_id,
-          \ [ s:select - 1, 'jump', v:none ] )
+          \ [ s:select - 1, 'jump', v:null ] )
     return 1
   endif
   if a:key == "\<Up>" || a:key == "\<C-p>" || a:key == "\<C-k>" || a:key == "k"
@@ -112,7 +118,7 @@ function! s:MenuFilter( winid, key )
   " Close the popup on any other key press
   call youcompleteme#hierarchy#ui#Close(
         \ s:popup_id,
-        \ [ s:select - 1, 'cancel', v:none ] )
+        \ [ s:select - 1, 'cancel', v:null ] )
   if a:key == "\<Esc>" || a:key == "\<C-c>"
     return 1
   endif
@@ -205,6 +211,9 @@ function! s:SetUpMenu()
         \ s:popup_id,
         \ menu_lines,
         \ 'ycm_hierarchy' )
+  call youcompleteme#hierarchy#ui#UpdateLayout(
+        \ s:popup_id,
+        \ len( menu_lines ) )
   call youcompleteme#list_ui#SetSelected(
         \ s:popup_id,
         \ s:select - 1 )
