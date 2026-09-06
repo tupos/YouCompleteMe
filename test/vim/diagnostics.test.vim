@@ -17,6 +17,46 @@ function! TearDown()
   call youcompleteme#test#setup#CleanUp()
 endfunction
 
+function! s:GetDetailedDiagnosticPopup() abort
+  redraw
+  let popups = popup_list()
+  call assert_equal( 1, len( popups ) )
+  return get( popups, 0, 0 )
+endfunction
+
+
+function! s:CheckDetailedDiagnosticPopup( popup_id ) abort
+  call assert_notequal(
+        \ 0,
+        \ a:popup_id,
+        \ "Couldn't find popup! " .. youcompleteme#test#popup#DumpPopups() )
+  if a:popup_id == 0
+    return
+  endif
+
+  call assert_true( get( popup_getpos( a:popup_id ), 'visible', 0 ) )
+
+  let popup_options = popup_getoptions( a:popup_id )
+  let text_property_id = get( popup_options, 'textpropid', 0 )
+  let text_property_type = get( popup_options, 'textprop', '' )
+  call assert_notequal( 0, text_property_id )
+  call assert_notequal( '', text_property_type )
+  if text_property_id == 0 || empty( text_property_type )
+    return
+  endif
+
+  let matching_properties = prop_list( line( '.' ), {
+        \ 'bufnr': bufnr( '%' ),
+        \ 'ids': [ text_property_id ],
+        \ 'types': [ text_property_type ],
+        \ } )
+  call assert_equal(
+        \ 1,
+        \ len( matching_properties ),
+        \ 'Popup text property does not cover the current line' )
+endfunction
+
+
 function! Test_Diagnostics_Update_In_Insert_Mode()
   call youcompleteme#test#setup#OpenFile(
     \ '/test/testdata/cpp/new_file.cpp', {} )
@@ -265,22 +305,8 @@ function! Test_ShowDetailedDiagnostic_PopupAtCursor()
   call cursor( [ 3, 1 ] )
   YcmShowDetailedDiagnostic popup
 
-  let id = popup_locate( 4, 16 )
-  call assert_notequal(
-        \ 0,
-        \ id,
-        \ "Couldn't find popup! " .. youcompleteme#test#popup#DumpPopups() )
-
-  if exists( '*popup_list' )
-    let popups = popup_list()
-    call assert_equal( 1, len( popups ) )
-  endif
-
-  call youcompleteme#test#popup#CheckPopupPosition( id, {
-        \ 'visible': 1,
-        \ 'col': 16,
-        \ 'line': 4,
-        \ } )
+  let id = s:GetDetailedDiagnosticPopup()
+  call s:CheckDetailedDiagnosticPopup( id )
   call assert_equal(
         \ [
         \   "Format specifies type 'char *' but the argument has type 'int' "
@@ -319,22 +345,8 @@ function! Test_ShowDetailedDiagnostic_Popup_WithCharacters()
   call cursor( [ 4, 1 ] )
   YcmShowDetailedDiagnostic popup
 
-  let id = popup_locate( 5, 7 )
-  call assert_notequal(
-        \ 0,
-        \ id,
-        \ "Couldn't find popup! " .. youcompleteme#test#popup#DumpPopups() )
-
-  if exists( '*popup_list' )
-    let popups = popup_list()
-    call assert_equal( 1, len( popups ) )
-  endif
-
-  call youcompleteme#test#popup#CheckPopupPosition( id, {
-        \ 'visible': 1,
-        \ 'col': 7,
-        \ 'line': 5,
-        \ } )
+  let id = s:GetDetailedDiagnosticPopup()
+  call s:CheckDetailedDiagnosticPopup( id )
   call assert_match(
         \ "^No matching literal operator for call to 'operator\"\"_foo'.*",
         \ getbufline( winbufnr(id), 1, '$' )[ 0 ] )
@@ -374,16 +386,8 @@ function! Test_ShowDetailedDiagnostic_Popup_MultilineDiagNotFromStartOfLine()
     call cursor( cursor_pos )
     YcmShowDetailedDiagnostic popup
 
-    call assert_equal( len( popup_list() ), 1 )
-    let id = popup_list()[ 0 ]
-    call assert_notequal( 0, id, "Couldn't find popup!" )
-    call assert_equal( [ 3, 10 ], win_screenpos( id ) )
-
-    call youcompleteme#test#popup#CheckPopupPosition( id, {
-          \ 'visible': 1,
-          \ 'col': 10,
-          \ 'line': 3,
-          \ } )
+    let id = s:GetDetailedDiagnosticPopup()
+    call s:CheckDetailedDiagnosticPopup( id )
     call assert_match(
           \ "^Invalid '==' at end of declaration; did you mean '='?.*",
           \ getbufline( winbufnr(id), 1, '$' )[ 0 ] )
@@ -423,16 +427,8 @@ function! Test_ShowDetailedDiagnostic_Popup_MultilineDiagFromStartOfLine()
     call cursor( cursor_pos )
     YcmShowDetailedDiagnostic popup
 
-    call assert_equal( 1, len( popup_list() ) )
-    let id = popup_list()[ 0 ]
-    call assert_notequal( 0, id, "Couldn't find popup!" )
-    call assert_equal( [ 3, 13 ], win_screenpos( id ) )
-
-    call youcompleteme#test#popup#CheckPopupPosition( id, {
-          \ 'visible': 1,
-          \ 'col': 13,
-          \ 'line': 3,
-          \ } )
+    let id = s:GetDetailedDiagnosticPopup()
+    call s:CheckDetailedDiagnosticPopup( id )
     call assert_match(
           \ "^Variable 'rd' declared const here.*",
           \ getbufline( winbufnr(id), 1, '$' )[ 0 ] )
