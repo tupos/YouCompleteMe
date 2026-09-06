@@ -54,6 +54,17 @@ function! s:RunTest( test ) abort
         \ s:single_test_timeout,
         \ function( 's:Abort' ) )
 
+  if exists( '*SetUp_' . a:test )
+    try
+      execute 'call SetUp_' . a:test
+    catch
+      call add( v:errors,
+            \ 'Caught exception in SetUp_' . a:test . ' before ' .
+            \ a:test . ': ' .
+            \ v:exception . ' @ ' . v:throwpoint )
+    endtry
+  endif
+
   try
     if exists( '*SetUp' )
       call SetUp()
@@ -71,6 +82,17 @@ function! s:RunTest( test ) abort
     catch
       call add( v:errors,
             \ 'Caught exception in TearDown() after ' . a:test . ': ' .
+            \ v:exception . ' @ ' . v:throwpoint )
+    endtry
+  endif
+
+  if exists( '*TearDown_' . a:test )
+    try
+      execute 'call TearDown_' . a:test
+    catch
+      call add( v:errors,
+            \ 'Caught exception in TearDown_' . a:test . ' after ' .
+            \ a:test . ': ' .
             \ v:exception . ' @ ' . v:throwpoint )
     endtry
   endif
