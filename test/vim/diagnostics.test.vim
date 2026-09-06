@@ -61,6 +61,11 @@ function! YcmTest_SetCharAvailOverride( enabled ) abort
 endfunction
 
 
+function! YcmTest_ProcessCursorMoved() abort
+  " Vim closes a popup with moved='expr' synchronously while processing input.
+endfunction
+
+
 function! YcmTest_VirtualDiagnosticProperties() abort
   return prop_list( 1, {
         \ 'end_lnum': -1,

@@ -6,6 +6,7 @@
 "   YcmTest_DetailedDiagnosticWindowExists( window_id )
 "   YcmTest_CloseDetailedDiagnosticWindow( window_id )
 "   YcmTest_SetCharAvailOverride( enabled )
+"   YcmTest_ProcessCursorMoved()
 "   YcmTest_VirtualDiagnosticProperties()
 "   YcmTest_DiagnosticHighlights( line_number )
 
@@ -273,6 +274,7 @@ function! Test_ShowDetailedDiagnostic_PopupAtCursor()
   " trigger the check for last_cursormoved by going into insert mode
   call YcmTest_SetCharAvailOverride( 1 )
   call feedkeys( "ji\<Esc>", 'xt' )
+  call YcmTest_ProcessCursorMoved()
   call assert_false( YcmTest_DetailedDiagnosticWindowExists( id ) )
   call YcmTest_SetCharAvailOverride( 0 )
 
@@ -310,6 +312,7 @@ function! Test_ShowDetailedDiagnostic_Popup_WithCharacters()
   " trigger the check for last_cursormoved by going into insert mode
   call YcmTest_SetCharAvailOverride( 1 )
   call feedkeys( "ji\<Esc>", 'xt' )
+  call YcmTest_ProcessCursorMoved()
   call assert_false( YcmTest_DetailedDiagnosticWindowExists( id ) )
   call YcmTest_SetCharAvailOverride( 0 )
 
@@ -349,6 +352,7 @@ function! Test_ShowDetailedDiagnostic_Popup_MultilineDiagNotFromStartOfLine()
     " From vim's test_popupwin.vim
     " trigger the check for last_cursormoved by going into insert mode
     call feedkeys( "ji\<Esc>", 'xt' )
+    call YcmTest_ProcessCursorMoved()
     call assert_false( YcmTest_DetailedDiagnosticWindowExists( id ) )
   endfor
 
@@ -390,6 +394,7 @@ function! Test_ShowDetailedDiagnostic_Popup_MultilineDiagFromStartOfLine()
     " From vim's test_popupwin.vim
     " trigger the check for last_cursormoved by going into insert mode
     call feedkeys( "ji\<Esc>ki\<Esc>", 'xt' )
+    call YcmTest_ProcessCursorMoved()
     call assert_false( YcmTest_DetailedDiagnosticWindowExists( id ) )
   endfor
 

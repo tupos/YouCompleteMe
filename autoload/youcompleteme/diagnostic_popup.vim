@@ -22,7 +22,7 @@ let s:is_neovim = has( 'nvim' )
 
 function! youcompleteme#diagnostic_popup#Supported() abort
   if s:is_neovim
-    return v:false
+    return youcompleteme#diagnostic_popup#neovim#Supported()
   endif
   return youcompleteme#diagnostic_popup#vim#Supported()
 endfunction
@@ -34,7 +34,11 @@ function! youcompleteme#diagnostic_popup#Show(
       \ cursor_position,
       \ diagnostic ) abort
   if s:is_neovim
-    return -1
+    return youcompleteme#diagnostic_popup#neovim#Show(
+          \ a:lines,
+          \ a:buffer_number,
+          \ a:cursor_position,
+          \ a:diagnostic )
   endif
   return youcompleteme#diagnostic_popup#vim#Show(
         \ a:lines,
