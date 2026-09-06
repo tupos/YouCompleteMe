@@ -1,3 +1,23 @@
+function! YcmTest_HoverWindowAtScreenPosition( position ) abort
+  return popup_locate( a:position.row, a:position.col )
+endfunction
+
+
+function! YcmTest_ClearHoverWindows() abort
+  call popup_clear()
+endfunction
+
+
+function! YcmTest_PrepareForCursorMovement() abort
+  call test_override( 'char_avail', 1 )
+endfunction
+
+
+function! YcmTest_RestoreCursorMovement() abort
+  call test_override( 'ALL', 0 )
+endfunction
+
+
 function! s:CheckNoCommandRequest()
   return youcompleteme#test#commands#CheckNoCommandRequest()
 endfunction
@@ -18,15 +38,15 @@ function! s:CheckPopupVisibleScreenPos( loc, text, syntax )
   call s:CheckNoCommandRequest()
   call WaitForAssert( { ->
         \   assert_notequal( 0,
-        \                    popup_locate( a:loc.row, a:loc.col ),
+        \                    YcmTest_HoverWindowAtScreenPosition( a:loc ),
         \                    'Locate popup at ('
         \                    . a:loc.row
         \                    . ','
         \                    . a:loc.col
         \                    . ')' )
        \ } )
-  let popup = popup_locate( a:loc.row, a:loc.col )
-  if a:text isnot v:none
+  let popup = YcmTest_HoverWindowAtScreenPosition( a:loc )
+  if a:text isnot v:null
     call assert_equal( a:text,
                      \ getbufline( winbufnr( popup ), 1, '$' ) )
   endif
@@ -49,8 +69,9 @@ function! s:CheckPopupNotVisibleScreenPos( loc )
   redraw
   call s:CheckNoCommandRequest()
   call WaitForAssert( { ->
-        \   assert_equal( 0,
-        \                 popup_locate( a:loc.row, a:loc.col ) )
+        \   assert_equal(
+        \     0,
+        \     YcmTest_HoverWindowAtScreenPosition( a:loc ) )
         \ } )
 endfunction
 
@@ -105,13 +126,13 @@ function! Test_Hover_Uses_GetDoc()
   call setpos( '.', [ 0, 12, 3 ] )
   doautocmd CursorHold
   call s:CheckPopupVisible( 11, 4, s:python_oneline.GetDoc, '' )
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 
   " some doc - mapping
   call setpos( '.', [ 0, 12, 3 ] )
   normal \D
   call s:CheckPopupVisible( 11, 4, s:python_oneline.GetDoc, '' )
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
 
 function! Test_Hover_Uses_GetHover()
@@ -134,7 +155,7 @@ EOPYTHON
   call setpos( '.', [ 0, 12, 3 ] )
   normal \D
   call s:CheckPopupNotVisible( 11, 4 )
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 
 endfunction
 
@@ -152,7 +173,7 @@ EOPYTHON
   normal \D
   call s:CheckPopupNotVisible( 11, 4 )
 
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
 
 function! Test_Hover_Uses_GetType()
@@ -175,7 +196,7 @@ EOPYTHON
   call setpos( '.', [ 0, 12, 3 ] )
   doautocmd CursorHold
   call s:CheckPopupVisible( 11, 4, s:python_oneline.GetType, 'python' )
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 
   " some doc - mapping
   call setpos( '.', [ 0, 12, 3 ] )
@@ -189,7 +210,7 @@ EOPYTHON
   " show it again
   normal \D
   call s:CheckPopupVisible( 11, 4, s:python_oneline.GetType, 'python' )
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 
 endfunction
 
@@ -207,7 +228,7 @@ function! Test_Hover_NonNative()
   call assert_false( exists( 'b:ycm_hover' ) )
   call assert_equal( messages_before, execute( 'messages' ) )
 
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
 
 function SetUp_Test_Hover_Disabled_NonNative()
@@ -223,7 +244,7 @@ function! Test_Hover_Disabled_NonNative()
   call assert_false( exists( 'b:ycm_hover' ) )
   call assert_equal( messages_before, execute( 'messages' ) )
 
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
 
 function! SetUp_Test_AutoHover_Disabled()
@@ -253,7 +274,7 @@ function! Test_AutoHover_Disabled()
   call s:CheckPopupNotVisible( 11, 4 )
   call assert_equal( messages_before, execute( 'messages' ) )
 
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
 
 function! Test_Hover_MoveCursor()
@@ -263,7 +284,7 @@ function! Test_Hover_MoveCursor()
   " cursor moved events in very specific times. In particular, _not_ while
   " running a script (like we are here), but it _does_ on enter/exit insert
   " mode.
-  call test_override( 'char_avail', 1 )
+  call YcmTest_PrepareForCursorMovement()
 
   call setpos( '.', [ 0, 12, 3 ] )
   doautocmd CursorHold
@@ -283,9 +304,9 @@ function! Test_Hover_MoveCursor()
   call feedkeys( "b\\D", 'xt' )
   call s:CheckPopupVisible( 11, 3, s:python_oneline.GetDoc, '' )
 
-  call test_override( 'ALL', 0 )
+  call YcmTest_RestoreCursorMovement()
 
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
 
 function! Test_Hover_Dismiss()
@@ -295,7 +316,7 @@ function! Test_Hover_Dismiss()
   " cursor moved events in very specific times. In particular, _not_ while
   " running a script (like we are here), but it _does_ on enter/exit insert
   " mode.
-  call test_override( 'char_avail', 1 )
+  call YcmTest_PrepareForCursorMovement()
 
   call setpos( '.', [ 0, 12, 3 ] )
   doautocmd CursorHold
@@ -316,7 +337,7 @@ function! Test_Hover_Dismiss()
   doautocmd CursorHold
   call s:CheckPopupVisible( 11, 3, s:python_oneline.GetDoc, '' )
 
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
 
 function! SetUp_Test_Hover_Custom_Syntax()
@@ -345,7 +366,7 @@ function! Test_Hover_Custom_Syntax()
   normal \D
   call s:CheckPopupNotVisibleScreenPos( { 'row': 7, 'col': 9 } )
 
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
 
 function! TearDown_Test_Hover_Custom_Syntax()
@@ -374,7 +395,7 @@ function! Test_Hover_Custom_Command()
 
   call s:CheckPopupVisible( 5, 9, s:cpp_lifetime.GetType, 'cpp' )
 
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
 
 function! TearDown_Test_Hover_Custom_Command()
@@ -421,7 +442,7 @@ function! Test_Hover_Custom_Popup()
   normal \D
   call s:CheckPopupNotVisibleScreenPos( { 'row': 7, 'col': 9 } )
 
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
 
 function! TearDown_Test_Hover_Custom_Popup()
@@ -435,20 +456,20 @@ function! Test_Long_Single_Line()
 
   " The popup should cover at least the whole of the line above, and not the
   " current line
-  call s:CheckPopupVisible( 36, 1, v:none, '' )
-  call s:CheckPopupVisible( 36, &columns, v:none, '' )
+  call s:CheckPopupVisible( 36, 1, v:null, '' )
+  call s:CheckPopupVisible( 36, &columns, v:null, '' )
 
   call s:CheckPopupNotVisible( 37, 1 )
   call s:CheckPopupNotVisible( 37, &columns )
 
   " Also wrap is ON so it should cover at least 2 lines + 2 for the header/empty
   " line
-  call s:CheckPopupVisible( 35, 1, v:none, '' )
-  call s:CheckPopupVisible( 35, &columns, v:none, '' )
-  call s:CheckPopupVisible( 33, 1, v:none, '' )
-  call s:CheckPopupVisible( 33, &columns, v:none, '' )
+  call s:CheckPopupVisible( 35, 1, v:null, '' )
+  call s:CheckPopupVisible( 35, &columns, v:null, '' )
+  call s:CheckPopupVisible( 33, 1, v:null, '' )
+  call s:CheckPopupVisible( 33, &columns, v:null, '' )
 
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
 
 function! Test_Long_Wrapped()
@@ -458,19 +479,19 @@ function! Test_Long_Wrapped()
 
   " The popup should cover at least the whole of the line above, and not the
   " current line. In this case, it's because the popup was shifted.
-  call s:CheckPopupVisible( 37, 1, v:none, '' )
-  call s:CheckPopupVisible( 37, &columns, v:none, '' )
+  call s:CheckPopupVisible( 37, 1, v:null, '' )
+  call s:CheckPopupVisible( 37, &columns, v:null, '' )
 
   call s:CheckPopupNotVisible( 38, 1 )
   call s:CheckPopupNotVisible( 38, &columns )
 
   " Also, wrap is off, so it should be _exactly_ 9 lines + 2 for the signature
   " and the empty line
-  call s:CheckPopupVisible( 27, 1, v:none, '' )
-  call s:CheckPopupVisible( 27, &columns, v:none, '' )
+  call s:CheckPopupVisible( 27, 1, v:null, '' )
+  call s:CheckPopupVisible( 27, &columns, v:null, '' )
 
   call s:CheckPopupNotVisible( 26, 1 )
   call s:CheckPopupNotVisible( 26, &columns )
 
-  call popup_clear()
+  call YcmTest_ClearHoverWindows()
 endfunction
