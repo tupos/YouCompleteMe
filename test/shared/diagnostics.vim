@@ -14,6 +14,9 @@ function! SetUp()
   let g:ycm_confirm_extra_conf = 0
   let g:ycm_auto_trigger = 1
   let g:ycm_keep_logfiles = 1
+  " Keep diagnostics tests independent of signature-help requests, which can
+  " cause a language server to publish diagnostics as a side effect.
+  let g:ycm_disable_signature_help = 1
   let g:ycm_log_level = 'DEBUG'
   let g:ycm_always_populate_location_list = 1
   let g:ycm_enable_semantic_highlighting = 1
@@ -28,13 +31,16 @@ function! TearDown()
   call youcompleteme#test#setup#CleanUp()
 endfunction
 
+
+function! YcmTest_RequestDiagnostics()
+  doautocmd <nomodeline> TextChanged
+  return ''
+endfunction
+
+
 function! Test_Diagnostics_Update_In_Insert_Mode()
   call youcompleteme#test#setup#OpenFile(
     \ '/test/testdata/cpp/new_file.cpp', {} )
-
-  " Required to trigger TextChangedI
-  " https://github.com/vim/vim/issues/4665#event-2480928194
-  call YcmTest_SetCharAvailOverride( 1 )
 
   " Must do the checks in a timer callback because we need to stay in insert
   " mode until done.
@@ -45,8 +51,9 @@ function! Test_Diagnostics_Update_In_Insert_Mode()
     call feedkeys( "\<ESC>" )
   endfunction
 
-  call FeedAndCheckMain( 'imain(', funcref( 'Check' ) )
-  call YcmTest_SetCharAvailOverride( 0 )
+  call FeedAndCheckMain(
+    \ "imain(\<C-R>=YcmTest_RequestDiagnostics()\<CR>",
+    \ funcref( 'Check' ) )
 endfunction
 
 function! SetUp_Test_Disable_Diagnostics_Update_In_insert_Mode()
@@ -57,10 +64,6 @@ endfunction
 function! Test_Disable_Diagnostics_Update_In_insert_Mode()
   call youcompleteme#test#setup#OpenFile(
     \ '/test/testdata/cpp/new_file.cpp', {} )
-
-  " Required to trigger TextChangedI
-  " https://github.com/vim/vim/issues/4665#event-2480928194
-  call YcmTest_SetCharAvailOverride( 1 )
 
   " Must do the checks in a timer callback because we need to stay in insert
   " mode until done.
@@ -74,7 +77,9 @@ function! Test_Disable_Diagnostics_Update_In_insert_Mode()
                            \ '%',
                            \ { 'group': 'ycm_signs' } )[ 0 ][ 'signs' ] ) ) } )
 
-    call FeedAndCheckAgain( "   \<BS>\<BS>\<BS>)",
+    call FeedAndCheckAgain(
+      \ "   \<BS>\<BS>\<BS>)" .
+      \ "\<C-R>=YcmTest_RequestDiagnostics()\<CR>",
       \ funcref( 'CheckNoDiagUIAfterClosingPatenthesis' ) )
   endfunction
 
@@ -116,9 +121,9 @@ function! Test_Disable_Diagnostics_Update_In_insert_Mode()
       \ } )
   endfunction
 
-  call FeedAndCheckMain( 'imain(',
+  call FeedAndCheckMain(
+      \ "imain(\<C-R>=YcmTest_RequestDiagnostics()\<CR>",
       \ funcref( 'CheckNoDiagUIAfterOpenParenthesis' ) )
-  call YcmTest_SetCharAvailOverride( 0 )
 endfunction
 
 function! TearDown_Test_Disable_Diagnostics_Update_In_insert_Mode()
