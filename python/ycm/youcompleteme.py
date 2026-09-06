@@ -919,50 +919,47 @@ class YouCompleteMe:
       self._CloseLogfile( logfile )
 
 
-  def ShowDetailedDiagnostic( self, message_in_popup ):
-    detailed_diagnostic = BaseRequest().PostDataToHandler(
+  def ShowDetailedDiagnostic( self, message_in_popup: bool ) -> None:
+    detailed_diagnostic: dict[ str, object ] | None = (
+      BaseRequest().PostDataToHandler(
         BuildRequestData(), 'detailed_diagnostic' )
-    if detailed_diagnostic and 'message' in detailed_diagnostic:
-      message = detailed_diagnostic[ 'message' ]
-      if message_in_popup and vimsupport.VimSupportsPopupWindows():
-        window = vim.current.window
-        buffer_number = vimsupport.GetCurrentBufferNumber()
-        diags_on_this_line = self._buffers[ buffer_number ].DiagnosticsForLine(
-            window.cursor[ 0 ] )
+    )
+    if not detailed_diagnostic or 'message' not in detailed_diagnostic:
+      return
 
-        lines = message.split( '\n' )
-        available_columns = vimsupport.GetIntValue( '&columns' )
-        col = window.cursor[ 1 ] + 1
-        if col > available_columns - 2: # -2 accounts for padding.
-          col = 0
-        options = {
-          'col': col,
-          'padding': [ 0, 1, 0, 1 ],
-          'maxwidth': available_columns,
-          'close': 'click',
-          'fixed': 0,
-          'highlight': 'YcmErrorPopup',
-          'border': [ 1, 1, 1, 1 ],
-          # Close when moving cursor
-          'moved': 'expr',
-        }
-        popup_func = 'popup_atcursor'
-        for diag in diags_on_this_line:
-          if message == diag[ 'text' ]:
-            popup_func = 'popup_create'
-            prop = vimsupport.GetTextPropertyForDiag( buffer_number,
-                                                      window.cursor[ 0 ],
-                                                      diag )
-            options.update( {
-              'textpropid': prop[ 'id' ],
-              'textprop': prop[ 'type' ],
-            } )
-            options.pop( 'col' )
-            break
-        vim.eval( f'{ popup_func }( { json.dumps( lines ) }, '
-                                  f'{ json.dumps( options ) } )' )
-      else:
-        vimsupport.PostVimMessage( message, warning = False )
+    message: str = detailed_diagnostic[ 'message' ]
+    if not (
+        message_in_popup and
+        vimsupport.GetBoolValue(
+          'youcompleteme#diagnostic_popup#Supported()'
+        )
+    ):
+      vimsupport.PostVimMessage( message, warning = False )
+      return
+
+    buffer_number: int = vimsupport.GetCurrentBufferNumber()
+    cursor_position: list[ int ] = [
+      int( vim.current.window.cursor[ 0 ] ),
+      int( vim.current.window.cursor[ 1 ] ) + 1,
+    ]
+    matching_diagnostic: dict[ str, object ] = {}
+    for diagnostic in self._buffers[
+        buffer_number ].DiagnosticsForLine( cursor_position[ 0 ] ):
+      if message == diagnostic[ 'text' ]:
+        matching_diagnostic = diagnostic
+        break
+
+    encoded_diagnostic: str = vimsupport.EscapeForVim(
+      json.dumps( matching_diagnostic )
+    )
+    lines: list[ str ] = message.split( '\n' )
+    vim.eval(
+      f'youcompleteme#diagnostic_popup#Show( '
+      f'{ json.dumps( lines ) }, '
+      f'{ buffer_number }, '
+      f'{ json.dumps( cursor_position ) }, '
+      f"json_decode( '{ encoded_diagnostic }' ) )"
+    )
 
 
   def ForceCompileAndDiagnostics( self ):
