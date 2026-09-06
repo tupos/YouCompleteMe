@@ -6,8 +6,6 @@ let s:repository_directory = fnamemodify(
       \ resolve( expand( '<sfile>:p' ) ),
       \ ':h:h:h' )
 execute 'set runtimepath^=' . fnameescape( s:repository_directory )
-execute 'set runtimepath^=' . fnameescape(
-      \ s:repository_directory . '/test/lib' )
 execute 'source ' . fnameescape(
       \ expand( '<sfile>:p:h:h' ) . '/shared/finder.vim' )
 

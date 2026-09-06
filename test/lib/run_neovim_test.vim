@@ -6,6 +6,10 @@ set encoding=utf-8
 set nomore
 lang messages C
 
+" Make the reusable test helpers available to every Neovim test suite.
+execute 'set runtimepath^=' . fnameescape(
+      \ getcwd() . '/lib' )
+
 let g:testname = expand( '%' )
 let g:testpath = expand( '%:p' )
 let s:done = 0
@@ -45,6 +49,7 @@ function! s:RunTest( test ) abort
   let s:current_test = a:test
   let s:done += 1
   let v:errors = []
+  %bwipe!
   let timer = timer_start(
         \ s:single_test_timeout,
         \ function( 's:Abort' ) )

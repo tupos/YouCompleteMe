@@ -1,4 +1,4 @@
-" This file is the Vim entry point for the shared filesize integration tests.
+" This file is the Neovim entry point for the shared filesize integration tests.
 " The actual tests and common setup are in test/shared/filesize.vim.
 
 execute 'source ' . fnameescape(
