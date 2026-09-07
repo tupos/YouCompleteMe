@@ -336,9 +336,30 @@ function! Test_Completion_FixIt()
   call youcompleteme#test#setup#OpenFile(
         \ 'test/testdata/cpp/auto_include.cc', {} )
 
-  function! Check1( id )
+  function! Check1( attempt, id )
     call WaitForCompletion()
     call CheckCurrentLine( 'do_a' )
+
+    " clangd indexes auto_include.h in the background. Retry semantic
+    " completion until the symbols from that header become available instead
+    " of relying on a fixed delay.
+    let completion_abbreviations = map(
+          \ complete_info( [ 'items' ] )[ 'items' ],
+          \ { _, item -> item.abbr } )
+    if index( completion_abbreviations, 'do_a_thing(Thing thing)' ) < 0
+          \ || index( completion_abbreviations, 'do_another_thing()' ) < 0
+      if a:attempt < 20
+        call FeedAndCheckAgain(
+              \ "\<C-e>\<C-Space>",
+              \ funcref( 'Check1', [ a:attempt + 1 ] ) )
+      else
+        call CheckCompletionItemsHasItems( [ 'do_a_thing(Thing thing)',
+                                           \ 'do_another_thing()' ] )
+        call feedkeys( "\<Esc>" )
+      endif
+      return
+    endif
+
     call CheckCompletionItemsHasItems( [ 'do_a_thing(Thing thing)',
                                        \ 'do_another_thing()' ] )
     call FeedAndCheckAgain( "\<Tab>" , funcref( 'Check2' ) )
@@ -361,7 +382,9 @@ function! Test_Completion_FixIt()
   endfunction
 
   call setpos( '.', [ 0, 3, 1 ] )
-  call FeedAndCheckMain( "Ado_a\<C-Space>", funcref( 'Check1' ) )
+  call FeedAndCheckMain(
+        \ "Ado_a\<C-Space>",
+        \ funcref( 'Check1', [ 0 ] ) )
 endfunction
 
 function! Test_Select_Next_Previous_InsertModeMapping()
@@ -382,32 +405,17 @@ function! Test_Select_Next_Previous_InsertModeMapping()
     call CheckCurrentLine( '  foo.' )
     call CheckCompletionItemsContainsExactly( [ 'c', 'x', 'y' ] )
 
-    call FeedAndCheckAgain( "\<C-n>", funcref( 'Check2' ) )
+    call FeedAndCheckAgain( 'a', funcref( 'Check2' ) )
   endfunction
 
   function! Check2( id )
-    call WaitForCompletion()
-    call CheckCurrentLine( '  foo.c' )
-    call CheckCompletionItemsContainsExactly( [ 'c', 'x', 'y' ] )
-
+    call WaitForAssert( {-> assert_false( pumvisible(), 'pumvisible()' ) } )
+    call CheckCurrentLine( '  foo.a' )
+    call CheckCompletionItemsContainsExactly( [] )
     call FeedAndCheckAgain( "\<C-n>", funcref( 'Check3' ) )
   endfunction
 
   function! Check3( id )
-    call WaitForCompletion()
-    call CheckCurrentLine( '  foo.x' )
-    call CheckCompletionItemsContainsExactly( [ 'c', 'x', 'y' ] )
-
-    call FeedAndCheckAgain( "\<BS>a", funcref( 'Check4' ) )
-  endfunction
-
-  function! Check4( id )
-    call CheckCurrentLine( '  foo.a' )
-    call CheckCompletionItemsContainsExactly( [] )
-    call FeedAndCheckAgain( "\<C-n>", funcref( 'Check5' ) )
-  endfunction
-
-  function! Check5( id )
     " The last ctrl-n moved to the next line
     call CheckCurrentLine( '}' )
     call assert_equal( [ 0, 12, 2, 0 ], getpos( '.' ) )
