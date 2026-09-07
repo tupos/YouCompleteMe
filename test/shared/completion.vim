@@ -1,5 +1,11 @@
 scriptencoding utf-8
 
+" Shared completion integration tests.
+" Editor-specific adapters provide:
+"
+"   YcmTest_PrepareForCompletion()
+"   YcmTest_FinishCompletion()
+
 function! Test_Compl_After_Trigger()
   call youcompleteme#test#setup#OpenFile(
         \ '/third_party/ycmd/ycmd/tests/clangd/testdata/basic.cpp', {} )
@@ -8,7 +14,7 @@ function! Test_Compl_After_Trigger()
 
   " Required to trigger TextChangedI
   " https://github.com/vim/vim/issues/4665#event-2480928194
-  call test_override( 'char_avail', 1 )
+  call YcmTest_PrepareForCompletion()
 
   " Must do the checks in a timer callback because we need to stay in insert
   " mode until done.
@@ -21,7 +27,7 @@ function! Test_Compl_After_Trigger()
   " Checks run in insert mode, then exit insert mode.
   call assert_false( pumvisible(), 'pumvisible()' )
 
-  call test_override( 'ALL', 0 )
+  call YcmTest_FinishCompletion()
 endfunction
 
 function! Test_Force_Semantic_TopLevel()
@@ -48,7 +54,7 @@ function! Test_Force_Semantic_TopLevel()
   " Checks run in insert mode, then exit insert mode.
   call assert_false( pumvisible(), 'pumvisible()' )
 
-  call test_override( 'ALL', 0 )
+  call YcmTest_FinishCompletion()
 endfunction
 
 function! Test_Select_Next_Previous()
@@ -59,7 +65,7 @@ function! Test_Select_Next_Previous()
 
   " Required to trigger TextChangedI
   " https://github.com/vim/vim/issues/4665#event-2480928194
-  call test_override( 'char_avail', 1 )
+  call YcmTest_PrepareForCompletion()
 
   function! Check( id )
     call WaitForCompletion()
@@ -97,7 +103,7 @@ function! Test_Select_Next_Previous()
   " Checks run in insert mode, then exit insert mode.
   call assert_false( pumvisible(), 'pumvisible()' )
 
-  call test_override( 'ALL', 0 )
+  call YcmTest_FinishCompletion()
 endfunction
 
 function! Test_Enter_Delete_Chars_Updates_Filter()
@@ -108,7 +114,7 @@ function! Test_Enter_Delete_Chars_Updates_Filter()
 
   " Required to trigger TextChangedI
   " https://github.com/vim/vim/issues/4665#event-2480928194
-  call test_override( 'char_avail', 1 )
+  call YcmTest_PrepareForCompletion()
 
   function! Check1( id )
     call WaitForCompletion()
@@ -145,7 +151,7 @@ function! Test_Enter_Delete_Chars_Updates_Filter()
   " Checks run in insert mode, then exit insert mode.
   call assert_false( pumvisible(), 'pumvisible()' )
 
-  call test_override( 'ALL', 0 )
+  call YcmTest_FinishCompletion()
 endfunction
 
 function! SetUp_Test_Compl_No_Filetype()
@@ -168,7 +174,7 @@ function! Test_Compl_No_Filetype()
 
   " Required to trigger TextChangedI
   " https://github.com/vim/vim/issues/4665#event-2480928194
-  call test_override( 'char_avail', 1 )
+  call YcmTest_PrepareForCompletion()
 
   " Must do the checks in a timer callback because we need to stay in insert
   " mode until done.
@@ -185,7 +191,7 @@ function! Test_Compl_No_Filetype()
   " Checks run in insert mode, then exit insert mode.
   call assert_false( pumvisible(), 'pumvisible()' )
 
-  call test_override( 'ALL', 0 )
+  call YcmTest_FinishCompletion()
   delfunc! Check
 endfunction
 
@@ -207,7 +213,7 @@ function! Test_Compl_No_Filetype_Blacklisted()
 
   " Required to trigger TextChangedI
   " https://github.com/vim/vim/issues/4665#event-2480928194
-  call test_override( 'char_avail', 1 )
+  call YcmTest_PrepareForCompletion()
 
   " Must do the checks in a timer callback because we need to stay in insert
   " mode until done.
@@ -220,7 +226,7 @@ function! Test_Compl_No_Filetype_Blacklisted()
   " Checks run in insert mode, then exit insert mode.
   call assert_false( pumvisible(), 'pumvisible()' )
 
-  call test_override( 'ALL', 0 )
+  call YcmTest_FinishCompletion()
   delfunc! Check
 endfunction
 
@@ -397,7 +403,7 @@ function! Test_Select_Next_Previous_InsertModeMapping()
 
   " Required to trigger TextChangedI
   " https://github.com/vim/vim/issues/4665#event-2480928194
-  call test_override( 'char_avail', 1 )
+  call YcmTest_PrepareForCompletion()
 
   function! Check( id )
     call WaitForCompletion()
@@ -428,7 +434,7 @@ function! Test_Select_Next_Previous_InsertModeMapping()
   " Checks run in insert mode, then exit insert mode.
   call assert_false( pumvisible(), 'pumvisible()' )
 
-  call test_override( 'ALL', 0 )
+  call YcmTest_FinishCompletion()
   iunmap <C-n>
 endfunction
 
@@ -462,7 +468,7 @@ function! Test_Manual_Trigger()
 
   " Required to trigger TextChangedI
   " https://github.com/vim/vim/issues/4665#event-2480928194
-  call test_override( 'char_avail', 1 )
+  call YcmTest_PrepareForCompletion()
 
   function! Check( id )
     call WaitForCompletion()
@@ -488,7 +494,7 @@ function! Test_Manual_Trigger()
   " Checks run in insert mode, then exit insert mode.
   call assert_false( pumvisible(), 'pumvisible()' )
 
-  call test_override( 'ALL', 0 )
+  call YcmTest_FinishCompletion()
   iunmap <C-d>
 endfunction
 
@@ -509,7 +515,7 @@ function! Test_Manual_Trigger_CompleteFunc()
 
   " Required to trigger TextChangedI
   " https://github.com/vim/vim/issues/4665#event-2480928194
-  call test_override( 'char_avail', 1 )
+  call YcmTest_PrepareForCompletion()
 
   function! Check( id )
     call WaitForCompletion()
@@ -535,7 +541,7 @@ function! Test_Manual_Trigger_CompleteFunc()
   " Checks run in insert mode, then exit insert mode.
   call assert_false( pumvisible(), 'pumvisible()' )
 
-  call test_override( 'ALL', 0 )
+  call YcmTest_FinishCompletion()
   set completefunc=
 endfunction
 

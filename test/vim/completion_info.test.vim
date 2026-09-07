@@ -28,7 +28,10 @@ function! TearDown()
   call youcompleteme#test#setup#CleanUp()
 endfunction
 
-exe 'source' expand( "<sfile>:p:h" ) .. '/completion.common.vim'
+execute 'source ' . fnameescape(
+      \ expand( '<sfile>:p:h' ) . '/completion.vim' )
+execute 'source ' . fnameescape(
+      \ expand( '<sfile>:p:h:h' ) . '/shared/completion.vim' )
 
 function! Test_Using_Ondemand_Resolve()
   let debug_info = split( execute( 'YcmDebugInfo' ), "\n" )
