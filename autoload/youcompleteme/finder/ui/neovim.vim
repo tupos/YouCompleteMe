@@ -17,7 +17,8 @@
 
 
 function! youcompleteme#finder#ui#neovim#Supported() abort
-  return has( 'nvim-0.9' )
+  return youcompleteme#editor_support#FeatureSupported(
+        \ 'finder' )
         \ && exists( '*nvim_open_win' )
         \ && exists( '*nvim_buf_set_extmark' )
         \ && exists( '*prompt_setprompt' )

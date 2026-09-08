@@ -16,7 +16,7 @@
 # along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 from ycm.tests import PathToTestFile
 from ycm.tests.test_utils import ( CurrentWorkingDirectory, ExtendedMock,
-                                   MockVimBuffers, MockVimModule, Version,
+                                   MockVimBuffers, MockVimModule,
                                    VimBuffer, VimError, WindowsAndMacOnly )
 MockVimModule()
 
@@ -2163,10 +2163,14 @@ class VimsupportTest( TestCase ):
         ] )
 
 
-  @patch( 'ycm.tests.test_utils.VIM_VERSION', Version( 7, 4, 1578 ) )
-  def test_VimVersionAtLeast( self ):
-    assert_that( vimsupport.VimVersionAtLeast( '7.3.414' ) )
-    assert_that( vimsupport.VimVersionAtLeast( '7.4.1578' ) )
-    assert_that( not vimsupport.VimVersionAtLeast( '7.4.1579' ) )
-    assert_that( not vimsupport.VimVersionAtLeast( '7.4.1898' ) )
-    assert_that( not vimsupport.VimVersionAtLeast( '8.1.278' ) )
+  @patch( 'ycm.vimsupport.GetBoolValue', return_value = True )
+  def test_EditorFeatureSupported(
+      self,
+      get_bool_value: MagicMock ) -> None:
+    assert_that(
+      vimsupport.EditorFeatureSupported( "foo'bar" )
+    )
+    get_bool_value.assert_called_once_with(
+      "youcompleteme#editor_support#FeatureSupported( "
+      "'foo''bar' ) ? 1 : 0"
+    )

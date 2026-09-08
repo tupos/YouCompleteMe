@@ -973,6 +973,13 @@ def GetBoolValue( variable ):
   return bool( int( vim.eval( variable ) ) )
 
 
+def EditorFeatureSupported( feature: str ) -> bool:
+  return GetBoolValue(
+    'youcompleteme#editor_support#FeatureSupported( '
+    f"'{ EscapeForVim( feature ) }' ) ? 1 : 0"
+  )
+
+
 def GetIntValue( variable ):
   return int( vim.eval( variable ) or 0 )
 
@@ -1458,19 +1465,6 @@ def BuildRange( start_line, end_line ):
       }
     }
   }
-
-
-# Expects version_string in 'MAJOR.MINOR.PATCH' format, e.g. '8.1.278'
-def VimVersionAtLeast( version_string ):
-  major, minor, patch = ( int( x ) for x in version_string.split( '.' ) )
-
-  # For Vim 8.1.278, v:version is '801'
-  actual_major_and_minor = GetIntValue( 'v:version' )
-  matching_major_and_minor = major * 100 + minor
-  if actual_major_and_minor != matching_major_and_minor:
-    return actual_major_and_minor > matching_major_and_minor
-
-  return GetBoolValue( f"has( 'patch{ patch }' )" )
 
 
 def AutoCloseOnCurrentBuffer( name ):

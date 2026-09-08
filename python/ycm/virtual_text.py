@@ -28,10 +28,7 @@ VirtualTextChunk = tuple[ str, str ]
 
 
 def VirtualTextSupported() -> bool:
-  if vimsupport.VimIsNeovim():
-    return vimsupport.GetBoolValue( "has( 'nvim-0.10' )" )
-
-  return vimsupport.VimVersionAtLeast( '9.0.214' )
+  return vimsupport.EditorFeatureSupported( 'virtual_text' )
 
 
 class VirtualTextRenderer( Protocol ):
@@ -68,7 +65,7 @@ class VimVirtualTextRenderer:
 
 
   def Initialise( self ) -> bool:
-    if not vimsupport.VimVersionAtLeast( '9.0.214' ):
+    if not vimsupport.EditorFeatureSupported( 'virtual_text' ):
       return False
 
     property_types: list[ str ] = vimsupport.GetTextPropertyTypes()
@@ -168,7 +165,7 @@ class NeovimVirtualTextRenderer:
 
 
   def Initialise( self ) -> bool:
-    if not vimsupport.GetBoolValue( "has( 'nvim-0.10' )" ):
+    if not vimsupport.EditorFeatureSupported( 'virtual_text' ):
       return False
 
     for highlight_group, default_highlight_group in (

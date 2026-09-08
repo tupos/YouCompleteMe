@@ -17,7 +17,8 @@
 
 
 function! youcompleteme#hierarchy#ui#neovim#Supported() abort
-  return has( 'nvim-0.9' )
+  return youcompleteme#editor_support#FeatureSupported(
+        \ 'hierarchy' )
         \ && exists( '*nvim_open_win' )
         \ && exists( '*nvim_set_option_value' )
         \ && exists( '##WinClosed' )

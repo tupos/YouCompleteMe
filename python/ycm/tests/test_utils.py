@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from unittest.mock import DEFAULT, MagicMock, patch
 from unittest import skip
 from hamcrest import ( assert_that,
@@ -65,7 +65,6 @@ REDIR_START_REGEX = re.compile( '^redir => (?P<variable>[\\w:]+)$' )
 REDIR_END_REGEX = re.compile( '^redir END$' )
 EXISTS_REGEX = re.compile( '^exists\\( \'(?P<option>[\\w:]+)\' \\)$' )
 LET_REGEX = re.compile( '^let (?P<option>[\\w:]+) = (?P<value>.*)$' )
-HAS_PATCH_REGEX = re.compile( '^has\\( \'patch(?P<patch>\\d+)\' \\)$' )
 
 # One-and only instance of mocked Vim object. The first 'import vim' that is
 # executed binds the vim module to the instance of MagicMock that is created,
@@ -89,18 +88,6 @@ VIM_OPTIONS = {
   '&hidden': 0,
   '&expandtab': 1
 }
-
-Version = namedtuple( 'Version', [ 'major', 'minor', 'patch' ] )
-
-# This variable must be patched with a Version object for tests depending on a
-# recent Vim version. Example:
-#
-#   @patch( 'ycm.tests.test_utils.VIM_VERSION', Version( 8, 1, 614 ) )
-#   def ThisTestDependsOnTheVimVersion_test():
-#     ...
-#
-# Default is the oldest supported version.
-VIM_VERSION = Version( 7, 4, 1578 )
 
 REDIR = {
   'status': False,
@@ -214,7 +201,7 @@ def _MockVimOptionsEval( value ):
   return None
 
 
-def _MockVimFunctionsEval( value ):
+def _MockVimFunctionsEval( value: str ) -> object | None:
   if value == 'tempname()':
     return '_TEMP_FILE_'
 
@@ -292,22 +279,13 @@ def _MockVimPropEval( value ):
   return None
 
 
-def _MockVimVersionEval( value ):
-  match = HAS_PATCH_REGEX.search( value )
-  if match:
-    if not isinstance( VIM_VERSION, Version ):
-      raise RuntimeError( 'Vim version is not set.' )
-    return VIM_VERSION.patch >= int( match.group( 'patch' ) )
+def _MockVimEval( value: str ) -> object:  # noqa
+  # Unit tests model a supported editor by default. Tests exercising
+  # unsupported features patch EditorFeatureSupported directly.
+  if value.startswith(
+      'youcompleteme#editor_support#FeatureSupported( ' ):
+    return True
 
-  if value == 'v:version':
-    if not isinstance( VIM_VERSION, Version ):
-      raise RuntimeError( 'Vim version is not set.' )
-    return VIM_VERSION.major * 100 + VIM_VERSION.minor
-
-  return None
-
-
-def _MockVimEval( value ): # noqa
   if value == 'g:ycm_neovim_ns_id':
     return 1
 
@@ -328,10 +306,6 @@ def _MockVimEval( value ): # noqa
     return result
 
   result = _MockVimPropEval( value )
-  if result is not None:
-    return result
-
-  result = _MockVimVersionEval( value )
   if result is not None:
     return result
 

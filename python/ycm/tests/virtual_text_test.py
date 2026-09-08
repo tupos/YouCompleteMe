@@ -35,18 +35,19 @@ HIGHLIGHT_GROUPS: dict[ str, str ] = {
 class VirtualTextTest( TestCase ):
 
   @patch( 'ycm.virtual_text.vimsupport.GetTextPropertyTypes' )
-  @patch( 'ycm.virtual_text.vimsupport.VimVersionAtLeast',
+  @patch( 'ycm.virtual_text.vimsupport.EditorFeatureSupported',
           return_value = False )
   def test_VimInitialiseRejectsUnsupportedVersion(
       self,
-      vim_version_at_least: MagicMock,
+      editor_feature_supported: MagicMock,
       get_text_property_types: MagicMock ) -> None:
     renderer: virtual_text.VimVirtualTextRenderer = (
       virtual_text.VimVirtualTextRenderer( HIGHLIGHT_GROUPS )
     )
 
     assert_that( not renderer.Initialise() )
-    vim_version_at_least.assert_called_once_with( '9.0.214' )
+    editor_feature_supported.assert_called_once_with(
+      'virtual_text' )
     get_text_property_types.assert_not_called()
 
 
@@ -101,7 +102,7 @@ class VirtualTextTest( TestCase ):
     ] )
 
 
-  @patch( 'ycm.virtual_text.vimsupport.GetBoolValue',
+  @patch( 'ycm.virtual_text.vimsupport.EditorFeatureSupported',
           return_value = False )
   @patch( 'ycm.virtual_text.vimsupport.GetIntValue', return_value = 42 )
   @patch( 'ycm.virtual_text.vim.command' )
@@ -109,7 +110,7 @@ class VirtualTextTest( TestCase ):
       self,
       vim_command: MagicMock,
       get_int_value: MagicMock,
-      get_bool_value: MagicMock ) -> None:
+      editor_feature_supported: MagicMock ) -> None:
     renderer: virtual_text.NeovimVirtualTextRenderer = (
       virtual_text.NeovimVirtualTextRenderer(
         'ycm_inlay_hints',
@@ -118,7 +119,8 @@ class VirtualTextTest( TestCase ):
     )
 
     assert_that( not renderer.Initialise() )
-    get_bool_value.assert_called_once_with( "has( 'nvim-0.10' )" )
+    editor_feature_supported.assert_called_once_with(
+      'virtual_text' )
     vim_command.assert_not_called()
 
 

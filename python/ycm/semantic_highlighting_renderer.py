@@ -29,9 +29,8 @@ _NEOVIM_HIGHLIGHT_PRIORITY: int = 125
 
 
 def SemanticHighlightingSupported() -> bool:
-  if vimsupport.VimIsNeovim():
-    return vimsupport.GetBoolValue( "has( 'nvim-0.5' )" )
-  return True
+  return vimsupport.EditorFeatureSupported(
+    'semantic_highlighting' )
 
 
 class SemanticHighlightingRenderer( Protocol ):

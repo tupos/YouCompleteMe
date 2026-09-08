@@ -25,7 +25,8 @@ set cpo&vim
 let s:is_neovim = has( 'nvim' )
 
 let s:supports_completeopt_popup =
-      \ !s:is_neovim || has( 'nvim-0.10' )
+      \ youcompleteme#editor_support#FeatureSupported(
+      \   'completion_info_popup' )
 let s:supports_neovim_highlight_api =
       \ s:is_neovim &&
       \ exists( '*nvim_get_hl' ) &&

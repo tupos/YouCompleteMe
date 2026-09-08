@@ -22,7 +22,8 @@ endfunction
 
 
 function! youcompleteme#signature_help#ui#neovim#Supported() abort
-  return has( 'nvim-0.10' )
+  return youcompleteme#editor_support#FeatureSupported(
+        \ 'signature_help' )
 endfunction
 
 

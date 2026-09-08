@@ -19,7 +19,6 @@ from ycm.client.messages_request import MessagesPoll
 from ycm.tests.test_utils import ( ExtendedMock,
                                    MockVimBuffers,
                                    MockVimModule,
-                                   Version,
                                    VimBuffer,
                                    VimProp,
                                    VimSign )
@@ -732,22 +731,11 @@ class YouCompleteMeTest( TestCase ):
   @patch( 'ycm.client.event_notification.EventNotification.Done',
           return_value = True )
   @patch( 'ycm.vimsupport.PostVimMessage', new_callable = ExtendedMock )
-  def test_YouCompleteMe_UpdateDiagnosticInterface_OldVim(
-    self, ycm, post_vim_message, *args ):
-    YouCompleteMe_UpdateDiagnosticInterface( ycm, post_vim_message )
-
-
-  @YouCompleteMeInstance( { 'g:ycm_echo_current_diagnostic': 1,
-                            'g:ycm_enable_diagnostic_signs': 1,
-                            'g:ycm_enable_diagnostic_highlighting': 1 } )
-  @patch( 'ycm.youcompleteme.YouCompleteMe.FiletypeCompleterExistsForFiletype',
-          return_value = True )
-  @patch( 'ycm.tests.test_utils.VIM_VERSION', Version( 8, 1, 614 ) )
-  @patch( 'ycm.client.event_notification.EventNotification.Done',
-          return_value = True )
-  @patch( 'ycm.vimsupport.PostVimMessage', new_callable = ExtendedMock )
-  def test_YouCompleteMe_UpdateDiagnosticInterface_NewVim(
-    self, ycm, post_vim_message, *args ):
+  def test_YouCompleteMe_UpdateDiagnosticInterface(
+      self,
+      ycm: YouCompleteMe,
+      post_vim_message: MagicMock,
+      *args: object ) -> None:
     YouCompleteMe_UpdateDiagnosticInterface( ycm, post_vim_message )
 
 

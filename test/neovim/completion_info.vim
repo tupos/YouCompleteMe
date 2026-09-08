@@ -12,7 +12,8 @@ endfunction
 
 
 function! YcmTest_CompletionInfoSupported() abort
-  return has( 'nvim-0.10' )
+  return youcompleteme#editor_support#FeatureSupported(
+        \ 'completion_info_popup' )
 endfunction
 
 
