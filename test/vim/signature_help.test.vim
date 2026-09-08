@@ -17,9 +17,11 @@ function! s:WaitForSigHelpAvailable( filetype )
 endfunction
 
 function! s:_ClearSigHelp()
-  pythonx _sh_state = sh.UpdateSignatureHelp( _sh_state, {} )
-  call assert_true( pyxeval( '_sh_state.popup_win_id is None' ),
-        \ 'win id none with emtpy' )
+  call youcompleteme#signature_help#Clear()
+  call assert_equal(
+        \ 0,
+        \ youcompleteme#signature_help#WindowID(),
+        \ 'window ID after clearing empty signature help' )
   unlet! s:popup_win_id
 endfunction
 
@@ -40,23 +42,20 @@ function s:_GetSigHelpWinID()
         \ } )
   call WaitForAssert( {->
         \   assert_true(
-        \     pyxeval(
-        \       'ycm_state._signature_help_state.popup_win_id is not None'
-        \     ),
+        \     youcompleteme#signature_help#WindowID() > 0,
         \     'popup_win_id'
         \   )
         \ } )
-  let s:popup_win_id = pyxeval( 'ycm_state._signature_help_state.popup_win_id' )
+  let s:popup_win_id = youcompleteme#signature_help#WindowID()
   return s:popup_win_id
 endfunction
 
 function! s:_CheckSigHelpAtPos( sh, cursor, pos )
   call setpos( '.', [ 0 ] + a:cursor )
   redraw
-  pythonx _sh_state = sh.UpdateSignatureHelp( _sh_state,
-                                            \ vim.eval( 'a:sh' ) )
+  call youcompleteme#signature_help#Update( a:sh )
   redraw
-  let winid = pyxeval( '_sh_state.popup_win_id' )
+  let winid = youcompleteme#signature_help#WindowID()
   call youcompleteme#test#popup#CheckPopupPosition( winid, a:pos )
 endfunction
 
@@ -68,8 +67,6 @@ function! SetUp()
   let g:ycm_log_level = 'DEBUG'
 
   call youcompleteme#test#setup#SetUp()
-  pythonx from ycm import signature_help as sh
-  pythonx _sh_state = sh.SignatureHelpState()
 endfunction
 
 function! TearDown()
@@ -143,14 +140,12 @@ function! Test_Signatures_After_Trigger()
           \ } )
     call WaitForAssert( {->
           \   assert_true(
-          \     pyxeval(
-          \       'ycm_state._signature_help_state.popup_win_id is not None'
-          \     ),
+          \     youcompleteme#signature_help#WindowID() > 0,
           \     'popup_win_id'
           \   )
           \ } )
 
-    let popup_win_id = pyxeval( 'ycm_state._signature_help_state.popup_win_id' )
+    let popup_win_id = youcompleteme#signature_help#WindowID()
     let pos = win_screenpos( popup_win_id )
     call assert_false( pos == [ 0, 0 ] )
 
@@ -166,9 +161,7 @@ function! Test_Signatures_After_Trigger()
 
   call WaitForAssert( {->
         \   assert_true(
-        \     pyxeval(
-        \       'ycm_state._signature_help_state.popup_win_id is None'
-        \     ),
+        \     youcompleteme#signature_help#WindowID() == 0,
         \     'popup_win_id'
         \   )
         \ } )
@@ -200,11 +193,9 @@ function! Test_Signatures_With_PUM_NoSigns()
     redraw
 
     " NOTE: anchor is 0-based
-    call assert_equal( 6,
-                     \ pyxeval( 'ycm_state._signature_help_state.anchor[0]' ) )
-    call assert_equal( 13,
-                     \ pyxeval( 'ycm_state._signature_help_state.anchor[1]' ) )
-
+    call assert_equal(
+          \ [ 6, 13 ],
+          \ youcompleteme#signature_help#Anchor() )
 
     " Popup is shifted due to 80 column screen
     call youcompleteme#test#popup#CheckPopupPosition(
@@ -220,9 +211,7 @@ function! Test_Signatures_With_PUM_NoSigns()
   function! Check( id ) closure
     call WaitForAssert( {->
           \   assert_true(
-          \     pyxeval(
-          \       'ycm_state._signature_help_state.popup_win_id is not None'
-          \     ),
+          \     youcompleteme#signature_help#WindowID() > 0,
           \     'popup_win_id'
           \   )
           \ } )
@@ -241,9 +230,7 @@ function! Test_Signatures_With_PUM_NoSigns()
 
   call WaitForAssert( {->
         \   assert_true(
-        \     pyxeval(
-        \       'ycm_state._signature_help_state.popup_win_id is None'
-        \     ),
+        \     youcompleteme#signature_help#WindowID() == 0,
         \     'popup_win_id'
         \   )
         \ } )
@@ -276,11 +263,9 @@ function! Test_Signatures_With_PUM_Signs()
     redraw
 
     " NOTE: anchor is 0-based
-    call assert_equal( 6,
-                     \ pyxeval( 'ycm_state._signature_help_state.anchor[0]' ) )
-    call assert_equal( 13,
-                     \ pyxeval( 'ycm_state._signature_help_state.anchor[1]' ) )
-
+    call assert_equal(
+          \ [ 6, 13 ],
+          \ youcompleteme#signature_help#Anchor() )
 
     " Sign column is shown, popup shifts to the right 2 screen columns
     " Then shifts back due to 80 character screen width
@@ -299,9 +284,7 @@ function! Test_Signatures_With_PUM_Signs()
   function! Check( id ) closure
     call WaitForAssert( {->
           \   assert_true(
-          \     pyxeval(
-          \       'ycm_state._signature_help_state.popup_win_id is not None'
-          \     ),
+          \     youcompleteme#signature_help#WindowID() > 0,
           \     'popup_win_id'
           \   )
           \ } )
@@ -320,9 +303,7 @@ function! Test_Signatures_With_PUM_Signs()
 
   call WaitForAssert( {->
         \   assert_true(
-        \     pyxeval(
-        \       'ycm_state._signature_help_state.popup_win_id is None'
-        \     ),
+        \     youcompleteme#signature_help#WindowID() == 0,
         \     'popup_win_id'
         \   )
         \ } )
@@ -548,9 +529,7 @@ function! Test_Signatures_TopLineWithPUM()
     " so we hide the sig help popup.
     call WaitForAssert( {->
           \   assert_true(
-          \     pyxeval(
-          \       'ycm_state._signature_help_state.popup_win_id is None'
-          \     ),
+          \     youcompleteme#signature_help#WindowID() == 0,
           \     'popup_win_id'
           \   )
           \ } )

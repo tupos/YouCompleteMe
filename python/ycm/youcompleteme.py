@@ -23,7 +23,7 @@ import signal
 import vim
 from subprocess import PIPE
 from tempfile import NamedTemporaryFile
-from ycm import base, paths, signature_help, vimsupport
+from ycm import base, paths, vimsupport
 from ycm.buffer import BufferDict
 from ycmd import utils
 from ycmd.request_wrap import RequestWrap
@@ -179,8 +179,6 @@ class YouCompleteMe:
     self._signature_help_available_requests = SigHelpAvailableByFileType()
     self._command_requests = {}
     self._next_command_request_id = 0
-
-    self._signature_help_state = signature_help.SignatureHelpState()
     self._user_options = base.GetUserOptions( self._default_options )
     self._omnicomp = OmniCompleter( self._user_options )
     self._buffers = BufferDict( self._user_options )
@@ -372,7 +370,9 @@ class YouCompleteMe:
     return self._signature_help_available_requests[ filetype ].Done()
 
 
-  def SendSignatureHelpRequest( self ):
+  def SendSignatureHelpRequest(
+      self,
+      signature_help_state: str ) -> bool:
     """Send a signature help request, if we're ready to. Return whether or not a
     request was sent (and should be checked later)"""
     if not self.NativeFiletypeCompletionUsable():
@@ -396,9 +396,7 @@ class YouCompleteMe:
         return False
 
       request_data = self._latest_completion_request.request_data.copy()
-      request_data[ 'signature_help_state' ] = (
-          self._signature_help_state.IsActive()
-      )
+      request_data[ 'signature_help_state' ] = signature_help_state
 
       self._AddExtraConfDataIfNeeded( request_data )
 
@@ -418,16 +416,9 @@ class YouCompleteMe:
     return self._latest_signature_help_request.Response()
 
 
-  def ClearSignatureHelp( self ):
-    self.UpdateSignatureHelp( {} )
+  def ClearSignatureHelp( self ) -> None:
     if self._latest_signature_help_request:
       self._latest_signature_help_request.Reset()
-
-
-  def UpdateSignatureHelp( self, signature_info ):
-    self._signature_help_state = signature_help.UpdateSignatureHelp(
-      self._signature_help_state,
-      signature_info )
 
 
   def _GetCommandRequestArguments( self,
@@ -1001,10 +992,6 @@ class YouCompleteMe:
       'max_num_candidates': max_items,
       'query': vimsupport.ToUnicode( query )
     }, 'filter_and_sort_candidates' )
-
-
-  def ToggleSignatureHelp( self ):
-    self._signature_help_state.ToggleVisibility()
 
 
   def _AddSyntaxDataIfNeeded( self, extra_data ):

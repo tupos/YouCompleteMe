@@ -1378,7 +1378,7 @@ endfunction
 
 
 function! s:ShouldUseSignatureHelp()
-  return py3eval( 'vimsupport.VimSupportsPopupWindows()' )
+  return youcompleteme#signature_help#Supported()
 endfunction
 
 
@@ -1389,7 +1389,11 @@ function! s:RequestSignatureHelp()
 
   call s:StopPoller( s:pollers.signature_help )
 
-  if py3eval( 'ycm_state.SendSignatureHelpRequest()' )
+  let signature_help_state =
+        \ youcompleteme#signature_help#StateForRequest()
+  if py3eval(
+        \ 'ycm_state.SendSignatureHelpRequest('
+        \ . 'vim.eval( "signature_help_state" ) )' )
     call s:PollSignatureHelp()
   endif
 endfunction
@@ -1454,8 +1458,7 @@ function! s:UpdateSignatureHelp()
     return
   endif
 
-  call py3eval(
-        \ 'ycm_state.UpdateSignatureHelp( vim.eval( "s:signature_help" ) )' )
+  call youcompleteme#signature_help#Update( s:signature_help )
 endfunction
 
 
@@ -1467,6 +1470,7 @@ function! s:ClearSignatureHelp()
   call s:StopPoller( s:pollers.signature_help )
   let s:signature_help = s:default_signature_help
   call py3eval( 'ycm_state.ClearSignatureHelp()' )
+  call youcompleteme#signature_help#Clear()
 endfunction
 
 
@@ -1798,7 +1802,7 @@ function! youcompleteme#Test_UpdateWorkDoneProgress()
 endfunction
 
 function! s:ToggleSignatureHelp()
-  call py3eval( 'ycm_state.ToggleSignatureHelp()' )
+  call youcompleteme#signature_help#ToggleVisibility()
   " Because we do this in a insert-mode mapping, we return empty string to
   " insert/type nothing
   return ''
