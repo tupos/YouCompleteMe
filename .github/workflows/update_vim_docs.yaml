@@ -5,7 +5,9 @@ on:
     branches:
       - master
     paths:
+      - '.github/workflows/update_vim_docs.yaml'
       - 'README.md'
+      - 'update-vim-docs'
   workflow_dispatch:
 
 jobs:
