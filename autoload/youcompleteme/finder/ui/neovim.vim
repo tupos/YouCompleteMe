@@ -104,6 +104,11 @@ function! youcompleteme#finder#ui#neovim#Create(
           \ ]
   endif
 
+  " TODO: Neovim does not provide Vim's native popup drag, resize, and close
+  " button options. Implement these controls with mouse events and
+  " nvim_win_set_config()/nvim_win_close() once YCM can require Neovim 0.11,
+  " which allows mouse events in a non-focusable floating window.
+
   let window_id = nvim_open_win(
         \ buffer_number,
         \ v:false,
