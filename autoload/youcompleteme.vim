@@ -24,6 +24,8 @@ set cpo&vim
 " neovim, which doesn't implement them.
 let s:is_neovim = has( 'nvim' )
 
+let s:supports_completeopt_popup =
+      \ !s:is_neovim || has( 'nvim-0.10' )
 let s:supports_neovim_highlight_api =
       \ s:is_neovim &&
       \ exists( '*nvim_get_hl' ) &&
@@ -100,6 +102,7 @@ let s:work_done_progress_frames =
       \ [ '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' ]
 
 let s:force_preview_popup = 0
+let s:force_preview = 0
 let s:enable_semantic_highlighting = 0
 
 let s:RESOLVE_NONE = 0
@@ -213,10 +216,10 @@ function! youcompleteme#Enable()
   let s:force_preview_popup =
         \ type( g:ycm_add_preview_to_completeopt ) == v:t_string &&
           \ g:ycm_add_preview_to_completeopt ==# 'popup' &&
-          \ !s:is_neovim
+          \ s:supports_completeopt_popup
 
   " Will we add 'preview' to the 'completeopt' (later)
-  let force_preview =
+  let s:force_preview =
         \ type( g:ycm_add_preview_to_completeopt ) != v:t_string &&
           \ g:ycm_add_preview_to_completeopt
 
@@ -232,7 +235,7 @@ function! youcompleteme#Enable()
   "  - preview is (or will be) in completeopt, or
   let require_resolve =
         \ use_preview_popup ||
-        \ force_preview ||
+        \ s:force_preview ||
         \ index( completeopt, 'preview' ) >= 0
 
   if use_preview_popup && exists( '*popup_findinfo' )
@@ -727,7 +730,7 @@ function! s:SetUpCompleteopt()
 
   if s:force_preview_popup
     set completeopt+=popup
-  elseif g:ycm_add_preview_to_completeopt
+  elseif s:force_preview
     set completeopt+=preview
   endif
 endfunction

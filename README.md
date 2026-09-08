@@ -3427,11 +3427,11 @@ let g:ycm_csharp_insert_namespace_expr = ''
 
 When this option is set to `1`, YCM will add the `preview` string to Vim's
 `completeopt` option (see `:h completeopt`). If your `completeopt` option
-already has `preview` set, there will be no effect. Alternatively, when set to
-`popup` and your version of Vim supports popup windows (see `:help popup`), the
-`popup` string will be used instead. You can see the current state of your
-`completeopt` setting with `:set completeopt?` (yes, the question mark is
-important).
+already has `preview` set, there will be no effect. Alternatively, when set
+to `popup` and your editor supports popup completion information, the `popup`
+string will be used instead. This requires Neovim 0.10 or later when running
+in Neovim. You can see the current state of your `completeopt` setting with
+`:set completeopt?` (yes, the question mark is important).
 
 When `preview` is present in `completeopt`, YCM will use the `preview` window at
 the top of the file to store detailed information about the current completion

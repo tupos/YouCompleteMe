@@ -15,7 +15,7 @@ function! SetUp()
   let g:ycm_enable_semantic_highlighting = 1
 
   set completeopt-=preview
-  set completeopt+=popup
+  set completeopt-=popup
 
   call youcompleteme#test#setup#SetUp()
 endfunction
@@ -32,6 +32,14 @@ execute 'source ' . fnameescape(
       \ expand( '<sfile>:p:h:h' ) . '/shared/completion.vim' )
 execute 'source ' . fnameescape(
       \ expand( '<sfile>:p:h:h' ) . '/shared/completion_info.vim' )
+
+
+function! Test_AddsPopupToCompleteopt()
+  let completeopt = split( &completeopt, ',' )
+
+  call assert_true( index( completeopt, 'popup' ) >= 0 )
+  call assert_equal( -1, index( completeopt, 'preview' ) )
+endfunction
 
 
 function! Test_Using_Upfront_Resolve()
