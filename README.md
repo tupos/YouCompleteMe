@@ -3026,10 +3026,9 @@ When this option is set to 1, YCM will echo the text of the diagnostic present
 on the current line when you move your cursor to that line. If a `FixIt` is
 available for the current diagnostic, then ` (FixIt)` is appended.
 
-If you have a Vim that supports virtual text, you can set this option
-to the string `virtual-text`, and the diagnostic will be displayed inline with
-the text, right aligned in the window and wrapping to the next line if there is
-not enough space, for example:
+If your editor supports virtual text, you can set this option to the string
+`virtual-text`, and the diagnostic will be displayed after the text on the
+current line, wrapping onto the next screen line when needed. For example:
 
 ![Virtual text diagnostic demo][diagnostic-echo-virtual-text1]
 
@@ -3055,7 +3054,7 @@ Valid values:
 
 ```viml
 let g:ycm_echo_current_diagnostic = 1
-" Or, when you have Vim supporting virtual text
+" Or, when using an editor supporting virtual text
 let g:ycm_echo_current_diagnostic = 'virtual-text'
 ```
 

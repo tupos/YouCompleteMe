@@ -8,6 +8,7 @@
 "   YcmTest_SetCharAvailOverride( enabled )
 "   YcmTest_ProcessCursorMoved()
 "   YcmTest_VirtualDiagnosticProperties()
+"   YcmTest_RenderedVirtualDiagnostics()
 "   YcmTest_DiagnosticHighlights( line_number )
 
 function! SetUp()
@@ -130,6 +131,63 @@ endfunction
 function! TearDown_Test_Disable_Diagnostics_Update_In_insert_Mode()
   call youcompleteme#test#setup#PopGlobal(
     \ 'ycm_update_diagnostics_in_insert_mode' )
+endfunction
+
+
+function! SetUp_Test_DiagnosticVirtualText()
+  call youcompleteme#test#setup#PushGlobal(
+        \ 'ycm_echo_current_diagnostic',
+        \ 'virtual-text' )
+  call youcompleteme#test#setup#PushGlobal(
+        \ 'ycm_update_diagnostics_in_insert_mode',
+        \ 0 )
+endfunction
+
+
+function! Test_DiagnosticVirtualText()
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/fixit.cpp',
+        \ {} )
+  let buffer_before = getline( 1, '$' )
+
+  call cursor( [ 3, 1 ] )
+  doautocmd <nomodeline> CursorMoved
+  call WaitForAssert( {->
+        \ assert_equal(
+        \   1,
+        \   len( YcmTest_RenderedVirtualDiagnostics() ) ) } )
+
+  let marker = &ambiwidth ==# 'double' ? '>' : '⚠'
+  call assert_equal(
+        \ [
+        \   {
+        \     'line': 3,
+        \     'chunks': [
+        \       [ repeat( ' ', &shiftwidth ), 'YcmVirtDiagPadding' ],
+        \       [
+        \         marker
+        \           . " Format specifies type 'char *' but the argument has "
+        \           . "type 'int' (fix available) [-Wformat]",
+        \         'YcmVirtDiagWarning',
+        \       ],
+        \     ],
+        \   },
+        \ ],
+        \ YcmTest_RenderedVirtualDiagnostics() )
+  call assert_equal( buffer_before, getline( 1, '$' ) )
+
+  call cursor( [ 1, 1 ] )
+  doautocmd <nomodeline> CursorMoved
+  call WaitForAssert( {->
+        \ assert_true( empty( YcmTest_VirtualDiagnosticProperties() ) ) } )
+endfunction
+
+
+function! TearDown_Test_DiagnosticVirtualText()
+  call youcompleteme#test#setup#PopGlobal(
+        \ 'ycm_update_diagnostics_in_insert_mode' )
+  call youcompleteme#test#setup#PopGlobal(
+        \ 'ycm_echo_current_diagnostic' )
 endfunction
 
 function! Test_Changing_Filetype_Refreshes_Diagnostics()

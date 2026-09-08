@@ -20,10 +20,18 @@ from typing import Protocol
 
 import vim
 
+from ycmd.utils import ToBytes
 from ycm import vimsupport
 
 
 VirtualTextChunk = tuple[ str, str ]
+
+
+def VirtualTextSupported() -> bool:
+  if vimsupport.VimIsNeovim():
+    return vimsupport.GetBoolValue( "has( 'nvim-0.10' )" )
+
+  return vimsupport.VimVersionAtLeast( '9.0.214' )
 
 
 class VirtualTextRenderer( Protocol ):
@@ -41,6 +49,14 @@ class VirtualTextRenderer( Protocol ):
       buffer_number: int,
       line_number: int,
       column_number: int,
+      chunks: list[ VirtualTextChunk ] ) -> None:
+    ...
+
+
+  def RenderAtEndOfLine(
+      self,
+      buffer_number: int,
+      line_number: int,
       chunks: list[ VirtualTextChunk ] ) -> None:
     ...
 
@@ -87,6 +103,39 @@ class VimVirtualTextRenderer:
       line_number: int,
       column_number: int,
       chunks: list[ VirtualTextChunk ] ) -> None:
+    self._Render(
+      buffer_number,
+      line_number,
+      column_number,
+      chunks,
+      {}
+    )
+
+
+  def RenderAtEndOfLine(
+      self,
+      buffer_number: int,
+      line_number: int,
+      chunks: list[ VirtualTextChunk ] ) -> None:
+    self._Render(
+      buffer_number,
+      line_number,
+      0,
+      chunks,
+      {
+        'text_align': 'after',
+        'text_wrap': 'wrap',
+      }
+    )
+
+
+  def _Render(
+      self,
+      buffer_number: int,
+      line_number: int,
+      column_number: int,
+      chunks: list[ VirtualTextChunk ],
+      options: dict[ str, object ] ) -> None:
     property_range: dict[ str, dict[ str, object ] ] = {
       'start': {
         'line_num': line_number,
@@ -95,14 +144,14 @@ class VimVirtualTextRenderer:
     }
 
     for text, property_type in chunks:
+      properties: dict[ str, object ] = dict( options )
+      properties[ 'text' ] = text
       vimsupport.AddTextPropertyForRange(
         buffer_number,
         None,
         property_type,
         property_range,
-        {
-          'text': text,
-        }
+        properties
       )
 
 
@@ -147,15 +196,46 @@ class NeovimVirtualTextRenderer:
       line_number: int,
       column_number: int,
       chunks: list[ VirtualTextChunk ] ) -> None:
+    self._Render(
+      buffer_number,
+      line_number - 1,
+      column_number - 1,
+      chunks,
+      'inline'
+    )
+
+
+  def RenderAtEndOfLine(
+      self,
+      buffer_number: int,
+      line_number: int,
+      chunks: list[ VirtualTextChunk ] ) -> None:
+    line: bytes | str = vim.buffers[ buffer_number ][ line_number - 1 ]
+    self._Render(
+      buffer_number,
+      line_number - 1,
+      len( ToBytes( line ) ),
+      chunks,
+      'inline'
+    )
+
+
+  def _Render(
+      self,
+      buffer_number: int,
+      line_index: int,
+      column_index: int,
+      chunks: list[ VirtualTextChunk ],
+      position: str ) -> None:
     options: dict[ str, object ] = {
       'virt_text': chunks,
-      'virt_text_pos': 'inline',
+      'virt_text_pos': position,
     }
     vim.eval(
       f'nvim_buf_set_extmark( { buffer_number }, '
       f'                      { self._namespace_id }, '
-      f'                      { line_number - 1 }, '
-      f'                      { column_number - 1 }, '
+      f'                      { line_index }, '
+      f'                      { column_index }, '
       f'                      { json.dumps( options ) } )'
     )
 

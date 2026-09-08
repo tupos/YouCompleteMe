@@ -48,6 +48,7 @@ from ycm.client.event_notification import SendEventNotificationAsync
 from ycm.client.shutdown_request import SendShutdownRequest
 from ycm.client.messages_request import MessagesPoll
 from ycm.semantic_highlighting_renderer import SemanticHighlightingSupported
+from ycm.virtual_text import VirtualTextSupported
 from ycm.work_done_progress import WorkDoneProgressState
 
 
@@ -812,7 +813,7 @@ class YouCompleteMe:
     return self.CurrentBuffer().ShouldResendParseRequest()
 
 
-  def DebugInfo( self ):
+  def DebugInfo( self ) -> str:
     debug_info = ''
     if self._client_logfile:
       debug_info += f'Client logfile: { self._client_logfile }\n'
@@ -829,7 +830,7 @@ class YouCompleteMe:
     debug_info += ( '\nSemantic highlighting supported: ' +
                     str( SemanticHighlightingSupported() ) )
     debug_info += ( '\nVirtual text supported: ' +
-                    str( not vimsupport.VimIsNeovim() ) )
+                    str( VirtualTextSupported() ) )
     debug_info += ( '\nPopup windows supported: ' +
                     str( vimsupport.VimSupportsPopupWindows() ) )
     return debug_info

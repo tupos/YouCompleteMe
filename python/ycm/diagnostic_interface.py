@@ -18,15 +18,52 @@
 from collections import defaultdict
 from ycm import vimsupport
 from ycm.diagnostic_filter import DiagnosticFilter, CompileLevel
+from ycm.virtual_text import ( CreateVirtualTextRenderer,
+                               VirtualTextChunk,
+                               VirtualTextRenderer,
+                               VirtualTextSupported )
 import vim
+
+
 YCM_VIM_PROPERTY_ID = 1
+DIAGNOSTIC_VIRTUAL_TEXT_NAMESPACE: str = 'ycm_diagnostic_virtual_text'
+DIAGNOSTIC_VIRTUAL_TEXT_HIGHLIGHT_GROUPS: dict[ str, str ] = {
+  'YcmVirtDiagPadding': 'YcmInvisible',
+  'YcmVirtDiagError': 'YcmErrorText',
+  'YcmVirtDiagWarning': 'YcmWarningText',
+}
+
+
+def Initialise() -> bool:
+  return CreateVirtualTextRenderer(
+    DIAGNOSTIC_VIRTUAL_TEXT_NAMESPACE,
+    DIAGNOSTIC_VIRTUAL_TEXT_HIGHLIGHT_GROUPS
+  ).Initialise()
 
 
 class DiagnosticInterface:
-  def __init__( self, bufnr, user_options ):
-    self._bufnr = bufnr
-    self._user_options = user_options
-    self._diagnostics = []
+  def __init__(
+      self,
+      bufnr: int,
+      user_options: dict[ str, object ],
+      virtual_text_renderer: VirtualTextRenderer | None = None,
+      virtual_text_supported: bool | None = None ) -> None:
+    self._bufnr: int = bufnr
+    self._user_options: dict[ str, object ] = user_options
+    self._virtual_text_renderer: VirtualTextRenderer = (
+      virtual_text_renderer
+      if virtual_text_renderer is not None
+      else CreateVirtualTextRenderer(
+        DIAGNOSTIC_VIRTUAL_TEXT_NAMESPACE,
+        DIAGNOSTIC_VIRTUAL_TEXT_HIGHLIGHT_GROUPS
+      )
+    )
+    self._virtual_text_supported: bool = (
+      VirtualTextSupported()
+      if virtual_text_supported is None
+      else virtual_text_supported
+    )
+    self._diagnostics: list[ dict[ str, object ] ] = []
     self._diag_filter = DiagnosticFilter.CreateFromOptions( user_options )
     # Line and column numbers are 1-based
     self._line_to_diags = defaultdict( list )
@@ -128,21 +165,21 @@ class DiagnosticInterface:
     self._EchoDiagnosticText( line_num, first_diag, text )
 
 
+  def _UseVirtualText( self ) -> bool:
+    return (
+      self._virtual_text_supported and
+      self._user_options[ 'echo_current_diagnostic' ] == 'virtual-text'
+    )
+
+
   def _ClearCurrentDiagnostic(
       self,
       will_be_replaced: bool = False ) -> None:
     if not self._diag_message_needs_clearing:
       return
 
-    if ( not vimsupport.VimIsNeovim() and
-         self._user_options[ 'echo_current_diagnostic' ] == 'virtual-text' ):
-      vimsupport.ClearTextProperties(
-        self._bufnr,
-        prop_types = [
-          'YcmVirtDiagPadding',
-          'YcmVirtDiagError',
-          'YcmVirtDiagWarning'
-        ] )
+    if self._UseVirtualText():
+      self._virtual_text_renderer.Clear( self._bufnr )
     else:
       if not will_be_replaced:
         vimsupport.PostVimMessage( '', warning = False )
@@ -150,37 +187,44 @@ class DiagnosticInterface:
     self._diag_message_needs_clearing = False
 
 
-  def _EchoDiagnosticText( self, line_num, first_diag, text ):
+  def _EchoDiagnosticText(
+      self,
+      line_num: int,
+      first_diag: dict[ str, object ] | None,
+      text: str | None ) -> None:
     self._ClearCurrentDiagnostic( bool( text ) )
 
-    if ( not vimsupport.VimIsNeovim() and
-         self._user_options[ 'echo_current_diagnostic' ] == 'virtual-text' ):
+    if self._UseVirtualText():
       if not text:
         return
 
-      def MakeVritualTextProperty( prop_type, text, position='after' ):
-        vimsupport.AddTextProperty( self._bufnr,
-                                    line_num,
-                                    0,
-                                    prop_type,
-                                    {
-                                      'text': text,
-                                      'text_align': position,
-                                      'text_wrap': 'wrap'
-                                    } )
-
       if vim.options[ 'ambiwidth' ] != 'double':
-        marker = '⚠'
+        marker: str = '⚠'
       else:
         marker = '>'
 
-      MakeVritualTextProperty(
-        'YcmVirtDiagPadding',
-        ' ' * vim.buffers[ self._bufnr ].options[ 'shiftwidth' ] ),
-      MakeVritualTextProperty(
-        'YcmVirtDiagError' if _DiagnosticIsError( first_diag )
-                       else 'YcmVirtDiagWarning',
-        marker + ' ' + [ line for line in text.splitlines() if line ][ 0 ] )
+      assert first_diag is not None
+      chunks: list[ VirtualTextChunk ] = [
+        (
+          ' ' * vim.buffers[ self._bufnr ].options[ 'shiftwidth' ],
+          'YcmVirtDiagPadding'
+        ),
+        (
+          marker + ' ' + [
+            line for line in text.splitlines() if line
+          ][ 0 ],
+          (
+            'YcmVirtDiagError'
+            if _DiagnosticIsError( first_diag )
+            else 'YcmVirtDiagWarning'
+          )
+        ),
+      ]
+      self._virtual_text_renderer.RenderAtEndOfLine(
+        self._bufnr,
+        line_num,
+        chunks
+      )
     else:
       if not text:
         # We already cleared it

@@ -78,6 +78,37 @@ function! YcmTest_VirtualDiagnosticProperties() abort
 endfunction
 
 
+function! YcmTest_RenderedVirtualDiagnostics() abort
+  let rendered_diagnostics = []
+
+  for property in YcmTest_VirtualDiagnosticProperties()
+    " Vim omits text_align from prop_list() when it has the default value
+    " 'after'.
+    call assert_equal(
+          \ 'after',
+          \ get( property, 'text_align', 'after' ) )
+    call assert_equal( 'wrap', property.text_wrap )
+
+    if empty( rendered_diagnostics ) ||
+          \ rendered_diagnostics[ -1 ].line != property.lnum
+      call add( rendered_diagnostics, {
+            \ 'line': property.lnum,
+            \ 'chunks': [],
+            \ } )
+    endif
+
+    " prop_list() returns same-column virtual text properties in the
+    " opposite order from that in which Vim displays them.
+    call insert(
+          \ rendered_diagnostics[ -1 ].chunks,
+          \ [ property.text, property.type ],
+          \ 0 )
+  endfor
+
+  return rendered_diagnostics
+endfunction
+
+
 function! YcmTest_DiagnosticHighlights( line_number ) abort
   let highlights = []
   for property in prop_list( a:line_number )

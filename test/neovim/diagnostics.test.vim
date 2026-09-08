@@ -1,6 +1,9 @@
 " This file provides the Neovim adapter for the shared diagnostics integration
 " tests. The actual tests and common setup are in test/shared/diagnostics.vim.
 
+let s:diagnostic_virtual_text_namespace = nvim_create_namespace(
+      \ 'ycm_diagnostic_virtual_text' )
+
 function! YcmTest_DetailedDiagnosticWindow() abort
   redraw
   for window_id in nvim_list_wins()
@@ -73,13 +76,32 @@ endfunction
 
 
 function! YcmTest_VirtualDiagnosticProperties() abort
-  let properties = []
-  for extmark in s:YcmExtmarks()
-    if !empty( get( extmark[ 3 ], 'virt_text', [] ) )
-      call add( properties, extmark )
-    endif
+  return nvim_buf_get_extmarks(
+        \ bufnr( '%' ),
+        \ s:diagnostic_virtual_text_namespace,
+        \ 0,
+        \ -1,
+        \ { 'details': v:true } )
+endfunction
+
+
+function! YcmTest_RenderedVirtualDiagnostics() abort
+  let rendered_diagnostics = []
+
+  for extmark in YcmTest_VirtualDiagnosticProperties()
+    let details = extmark[ 3 ]
+    call assert_equal( 'inline', details.virt_text_pos )
+    call assert_equal(
+          \ strlen( getline( extmark[ 1 ] + 1 ) ),
+          \ extmark[ 2 ] )
+
+    call add( rendered_diagnostics, {
+          \ 'line': extmark[ 1 ] + 1,
+          \ 'chunks': details.virt_text,
+          \ } )
   endfor
-  return properties
+
+  return rendered_diagnostics
 endfunction
 
 
@@ -107,6 +129,30 @@ function! YcmTest_DiagnosticHighlights( line_number ) abort
           \ } )
   endfor
   return highlights
+endfunction
+
+
+function! Test_DiagnosticVirtualTextUsesSpellingColorsWithoutDecoration() abort
+  for [ diagnostic_group, spelling_group ] in [
+        \ [ 'YcmErrorText', 'SpellBad' ],
+        \ [ 'YcmWarningText', 'SpellCap' ],
+        \ ]
+    let diagnostic_highlight = nvim_get_hl(
+          \ 0, { 'name': diagnostic_group, 'link': v:true } )
+    let resolved_diagnostic_highlight = nvim_get_hl(
+          \ 0, { 'name': diagnostic_group, 'link': v:false } )
+    let spelling_highlight = nvim_get_hl(
+          \ 0, { 'name': spelling_group, 'link': v:false } )
+
+    call assert_false( has_key( diagnostic_highlight, 'link' ) )
+    call assert_equal(
+          \ get( spelling_highlight, 'fg', v:null ),
+          \ get( resolved_diagnostic_highlight, 'fg', v:null ) )
+    call assert_false(
+          \ get( resolved_diagnostic_highlight, 'undercurl', v:false ) )
+    call assert_false(
+          \ get( resolved_diagnostic_highlight, 'underline', v:false ) )
+  endfor
 endfunction
 
 

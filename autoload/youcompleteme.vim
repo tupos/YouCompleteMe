@@ -24,6 +24,11 @@ set cpo&vim
 " neovim, which doesn't implement them.
 let s:is_neovim = has( 'nvim' )
 
+let s:supports_neovim_highlight_api =
+      \ s:is_neovim &&
+      \ exists( '*nvim_get_hl' ) &&
+      \ exists( '*nvim_set_hl' )
+
 " Only useful in neovim, for handling text properties... I mean extmarks.
 let g:ycm_neovim_ns_id = s:is_neovim ? nvim_create_namespace( 'ycm_id' ) : -1
 
@@ -249,6 +254,7 @@ function! youcompleteme#Enable()
 
   call s:SetUpOptions()
 
+  call py3eval( 'ycm_diagnostic_interface.Initialise()' )
   let s:enable_semantic_highlighting = py3eval(
         \ 'ycm_semantic_highlighting.Initialise()' ) ? 1 : 0
   let s:enable_inlay_hints = py3eval( 'ycm_inlay_hints.Initialise()' ) ? 1 : 0
@@ -351,6 +357,7 @@ sys.path[ 0:0 ] = [ p.join( root_folder, 'python' ),
 try:
   # Import the modules used in this file.
   from ycm import base, vimsupport, youcompleteme
+  from ycm import diagnostic_interface as ycm_diagnostic_interface
   from ycm import semantic_highlighting as ycm_semantic_highlighting
   from ycm import inlay_hints as ycm_inlay_hints
 
@@ -520,7 +527,14 @@ function! s:SetUpSyntaxHighlighting()
     highlight default link YcmInlayHint NonText
   endif
   if !hlexists( 'YcmErrorText' )
-    if exists( '*hlget' )
+    if s:supports_neovim_highlight_api
+      let YcmErrorText = nvim_get_hl(
+            \ 0, { 'name': 'SpellBad', 'link': v:false } )
+      let YcmErrorText.undercurl = v:false
+      let YcmErrorText.underline = v:false
+      let YcmErrorText.cterm = {}
+      call nvim_set_hl( 0, 'YcmErrorText', YcmErrorText )
+    elseif exists( '*hlget' )
       let YcmErrorText = hlget( 'SpellBad', v:true )[ 0 ]
       let YcmErrorText.name = 'YcmErrorText'
       let YcmErrorText.cterm = {}
@@ -533,7 +547,14 @@ function! s:SetUpSyntaxHighlighting()
     endif
   endif
   if !hlexists( 'YcmWarningText' )
-    if exists( '*hlget' )
+    if s:supports_neovim_highlight_api
+      let YcmWarningText = nvim_get_hl(
+            \ 0, { 'name': 'SpellCap', 'link': v:false } )
+      let YcmWarningText.undercurl = v:false
+      let YcmWarningText.underline = v:false
+      let YcmWarningText.cterm = {}
+      call nvim_set_hl( 0, 'YcmWarningText', YcmWarningText )
+    elseif exists( '*hlget' )
       let YcmWarningText = hlget( 'SpellCap', v:true )[ 0 ]
       let YcmWarningText.name = 'YcmWarningText'
       let YcmWarningText.cterm = {}

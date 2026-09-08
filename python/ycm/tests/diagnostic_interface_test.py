@@ -16,12 +16,14 @@
 # along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 from ycm import diagnostic_interface
 from ycm.tests.test_utils import VimBuffer, MockVimModule, MockVimBuffers
+from ycm.virtual_text import VirtualTextChunk
 from hamcrest import ( assert_that,
                        contains_exactly,
                        equal_to,
                        has_entries,
                        has_item )
 from unittest import TestCase
+from unittest.mock import call, MagicMock, patch
 MockVimModule()
 
 
@@ -102,7 +104,174 @@ def YcmTextPropertyTupleMatcher( start_line, start_col, end_line, end_col ):
     has_entries( { 'end_col': end_col, 'end_lnum': end_line } ) ) )
 
 
+class RecordingVirtualTextRenderer:
+
+  def __init__( self ) -> None:
+    self.clear_calls: list[ int ] = []
+    self.render_calls: list[
+      tuple[ int, int, int, list[ VirtualTextChunk ] ]
+    ] = []
+    self.end_of_line_render_calls: list[
+      tuple[ int, int, list[ VirtualTextChunk ] ]
+    ] = []
+
+
+  def Initialise( self ) -> bool:
+    return True
+
+
+  def Clear( self, buffer_number: int ) -> None:
+    self.clear_calls.append( buffer_number )
+
+
+  def Render(
+      self,
+      buffer_number: int,
+      line_number: int,
+      column_number: int,
+      chunks: list[ VirtualTextChunk ] ) -> None:
+    self.render_calls.append(
+      ( buffer_number, line_number, column_number, chunks )
+    )
+
+
+  def RenderAtEndOfLine(
+      self,
+      buffer_number: int,
+      line_number: int,
+      chunks: list[ VirtualTextChunk ] ) -> None:
+    self.end_of_line_render_calls.append(
+      ( buffer_number, line_number, chunks )
+    )
+
+
+def VirtualTextUserOptions() -> dict[ str, object ]:
+  return {
+    'filter_diagnostics': {},
+    'echo_current_diagnostic': 'virtual-text',
+  }
+
+
 class DiagnosticInterfaceTest( TestCase ):
+
+  @patch(
+    'ycm.diagnostic_interface.vim.options',
+    { 'ambiwidth': 'single' }
+  )
+  def test_VirtualTextRenderReplaceAndClear( self ) -> None:
+    renderer = RecordingVirtualTextRenderer()
+    interface = diagnostic_interface.DiagnosticInterface(
+      3,
+      VirtualTextUserOptions(),
+      virtual_text_renderer = renderer,
+      virtual_text_supported = True
+    )
+    target_buffer = VimBuffer( 'diagnostics.cpp', number = 3 )
+    target_buffer.options[ 'shiftwidth' ] = 2
+
+    with MockVimBuffers( [ target_buffer ], [ target_buffer ] ):
+      interface._EchoDiagnosticText(
+        7,
+        { 'kind': 'ERROR' },
+        '\nfirst line\nsecond line'
+      )
+      interface._EchoDiagnosticText(
+        8,
+        { 'kind': 'WARNING' },
+        'warning text'
+      )
+      interface._EchoDiagnosticText( 9, None, None )
+
+    assert_that( renderer.render_calls, contains_exactly() )
+    assert_that(
+      renderer.end_of_line_render_calls,
+      contains_exactly(
+        (
+          3,
+          7,
+          [
+            ( '  ', 'YcmVirtDiagPadding' ),
+            ( '⚠ first line', 'YcmVirtDiagError' ),
+          ]
+        ),
+        (
+          3,
+          8,
+          [
+            ( '  ', 'YcmVirtDiagPadding' ),
+            ( '⚠ warning text', 'YcmVirtDiagWarning' ),
+          ]
+        )
+      )
+    )
+    assert_that( renderer.clear_calls, contains_exactly( 3, 3 ) )
+
+
+  @patch(
+    'ycm.diagnostic_interface.vim.options',
+    { 'ambiwidth': 'double' }
+  )
+  def test_VirtualTextUsesAsciiMarkerForDoubleWidthCharacters( self ) -> None:
+    renderer = RecordingVirtualTextRenderer()
+    interface = diagnostic_interface.DiagnosticInterface(
+      3,
+      VirtualTextUserOptions(),
+      virtual_text_renderer = renderer,
+      virtual_text_supported = True
+    )
+    target_buffer = VimBuffer( 'diagnostics.cpp', number = 3 )
+    target_buffer.options[ 'shiftwidth' ] = 4
+
+    with MockVimBuffers( [ target_buffer ], [ target_buffer ] ):
+      interface._EchoDiagnosticText(
+        7,
+        { 'kind': 'ERROR' },
+        'diagnostic text'
+      )
+
+    assert_that(
+      renderer.end_of_line_render_calls,
+      contains_exactly(
+        (
+          3,
+          7,
+          [
+            ( '    ', 'YcmVirtDiagPadding' ),
+            ( '> diagnostic text', 'YcmVirtDiagError' ),
+          ]
+        )
+      )
+    )
+
+
+  @patch( 'ycm.diagnostic_interface.vimsupport.PostVimMessage' )
+  def test_UnsupportedVirtualTextFallsBackToCommandLine(
+      self,
+      post_vim_message: MagicMock ) -> None:
+    renderer = RecordingVirtualTextRenderer()
+    interface = diagnostic_interface.DiagnosticInterface(
+      3,
+      VirtualTextUserOptions(),
+      virtual_text_renderer = renderer,
+      virtual_text_supported = False
+    )
+
+    interface._EchoDiagnosticText(
+      7,
+      { 'kind': 'ERROR' },
+      'diagnostic text'
+    )
+    interface._EchoDiagnosticText( 8, None, None )
+
+    assert_that( renderer.render_calls, contains_exactly() )
+    assert_that( renderer.end_of_line_render_calls, contains_exactly() )
+    assert_that( renderer.clear_calls, contains_exactly() )
+    post_vim_message.assert_has_calls( [
+      call( 'diagnostic text', warning = False, truncate = True ),
+      call( '', warning = False ),
+    ] )
+
+
   def test_ConvertDiagnosticToTextProperties( self ):
     for diag, contents, result in [
       # Error in middle of the line
