@@ -28,6 +28,23 @@ function! youcompleteme#signature_help#ui#vim#Supported() abort
 endfunction
 
 
+function! youcompleteme#signature_help#ui#vim#Initialise() abort
+  if !youcompleteme#signature_help#ui#vim#Supported()
+    return v:false
+  endif
+
+  highlight default YCMInverse term=reverse cterm=reverse gui=reverse
+  if empty( prop_type_get( 'YCM-signature-help-current-argument' ) )
+    call prop_type_add( 'YCM-signature-help-current-argument', {
+          \ 'highlight': 'YCMInverse',
+          \ 'combine': 1,
+          \ 'priority': 50,
+          \ } )
+  endif
+  return v:true
+endfunction
+
+
 function! s:MakePopupBuffer( presentation ) abort
   let popup_buffer = []
   for line in a:presentation.lines

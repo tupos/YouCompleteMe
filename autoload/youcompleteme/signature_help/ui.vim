@@ -20,9 +20,17 @@
 let s:is_neovim = has( 'nvim' )
 
 
+function! youcompleteme#signature_help#ui#Initialise() abort
+  if s:is_neovim
+    return youcompleteme#signature_help#ui#neovim#Initialise()
+  endif
+  return youcompleteme#signature_help#ui#vim#Initialise()
+endfunction
+
+
 function! youcompleteme#signature_help#ui#Supported() abort
   if s:is_neovim
-    return v:false
+    return youcompleteme#signature_help#ui#neovim#Supported()
   endif
   return youcompleteme#signature_help#ui#vim#Supported()
 endfunction
@@ -35,7 +43,12 @@ function! youcompleteme#signature_help#ui#Render(
       \ hidden,
       \ syntax ) abort
   if s:is_neovim
-    return 0
+    return youcompleteme#signature_help#ui#neovim#Render(
+          \ a:window_id,
+          \ a:presentation,
+          \ a:anchor,
+          \ a:hidden,
+          \ a:syntax )
   endif
   return youcompleteme#signature_help#ui#vim#Render(
         \ a:window_id,
@@ -48,6 +61,7 @@ endfunction
 
 function! youcompleteme#signature_help#ui#Close( window_id ) abort
   if s:is_neovim
+    call youcompleteme#signature_help#ui#neovim#Close( a:window_id )
     return
   endif
   call youcompleteme#signature_help#ui#vim#Close( a:window_id )
@@ -56,6 +70,7 @@ endfunction
 
 function! youcompleteme#signature_help#ui#Hide( window_id ) abort
   if s:is_neovim
+    call youcompleteme#signature_help#ui#neovim#Hide( a:window_id )
     return
   endif
   call youcompleteme#signature_help#ui#vim#Hide( a:window_id )
@@ -64,6 +79,7 @@ endfunction
 
 function! youcompleteme#signature_help#ui#Show( window_id ) abort
   if s:is_neovim
+    call youcompleteme#signature_help#ui#neovim#Show( a:window_id )
     return
   endif
   call youcompleteme#signature_help#ui#vim#Show( a:window_id )

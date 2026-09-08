@@ -283,14 +283,7 @@ function! youcompleteme#Enable()
   let s:default_completion = py3eval( 'vimsupport.NO_COMPLETIONS' )
   let s:completion = s:default_completion
 
-  if s:PropertyTypeNotDefined( 'YCM-signature-help-current-argument' )
-    hi default YCMInverse term=reverse cterm=reverse gui=reverse
-    call prop_type_add( 'YCM-signature-help-current-argument', {
-          \   'highlight': 'YCMInverse',
-          \   'combine':   1,
-          \   'priority':  50,
-          \ } )
-  endif
+  call youcompleteme#signature_help#Initialise()
 
   nnoremap <silent> <plug>(YCMFindSymbolInWorkspace)
         \ :call youcompleteme#finder#FindSymbol( 'workspace' )<CR>
@@ -765,7 +758,12 @@ function! s:OnCompleteChanged()
     call s:ResolveCompletionItem( v:event.completed_item )
   endif
 
-  call s:UpdateSignatureHelp()
+  " CompleteChanged runs under textlock in Neovim. Defer rendering until
+  " Neovim returns to its main loop, where changing the signature-help
+  " buffer and floating-window configuration is allowed.
+  call timer_start(
+        \ 0,
+        \ function( 's:UpdateSignatureHelp' ) )
 endfunction
 
 
@@ -1453,7 +1451,7 @@ function! s:Complete()
   endif
 endfunction
 
-function! s:UpdateSignatureHelp()
+function! s:UpdateSignatureHelp( ... )
   if !s:ShouldUseSignatureHelp()
     return
   endif

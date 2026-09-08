@@ -26,6 +26,11 @@ let s:anchor = []
 let s:window_id = 0
 
 
+function! youcompleteme#signature_help#Initialise() abort
+  return youcompleteme#signature_help#ui#Initialise()
+endfunction
+
+
 function! youcompleteme#signature_help#Supported() abort
   return youcompleteme#signature_help#ui#Supported()
 endfunction

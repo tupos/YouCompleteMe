@@ -1,3 +1,56 @@
+" This file provides the Vim-specific adapter for the shared signature-help
+" integration tests. The actual tests are in
+" test/shared/signature_help.vim.
+
+
+function! YcmTest_SignatureHelpWindowVisible( window_id ) abort
+  if a:window_id <= 0
+    return v:false
+  endif
+
+  return get(
+        \ popup_getpos( a:window_id ),
+        \ 'visible',
+        \ v:false )
+endfunction
+
+
+function! YcmTest_SignatureHelpSelectedLine( window_id ) abort
+  return getcurpos( a:window_id )[ 1 ]
+endfunction
+
+
+function! YcmTest_SignatureHelpHighlights( window_id ) abort
+  let highlights = []
+  let buffer_number = winbufnr( a:window_id )
+
+  for line_number in range(
+        \ 1,
+        \ len( getbufline( buffer_number, 1, '$' ) ) )
+    for property in prop_list(
+          \ line_number,
+          \ { 'bufnr': buffer_number } )
+      if property.type !=# 'YCM-signature-help-current-argument'
+        continue
+      endif
+
+      call add( highlights, {
+            \ 'line': line_number - 1,
+            \ 'column': property.col - 1,
+            \ 'length': property.length,
+            \ 'group': prop_type_get( property.type ).highlight,
+            \ } )
+    endfor
+  endfor
+
+  return highlights
+endfunction
+
+
+execute 'source ' . fnameescape(
+      \ expand( '<sfile>:p:h:h' ) . '/shared/signature_help.vim' )
+
+
 let s:timer_interval = 2000
 
 function! s:WaitForSigHelpAvailable( filetype )

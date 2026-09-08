@@ -162,7 +162,7 @@ YCM also provides [semantic IDE-like features](#quick-feature-summary) in a
 number of languages, including:
 
 - displaying signature help (argument hints) when entering the arguments to a
-  function call (Vim only)
+  function call
 - [finding declarations, definitions, usages](#goto-commands), etc.
   of identifiers, and an [interactive symbol finder](#symbol-search)
 - [displaying type information](#the-gettype-subcommand) for classes,
@@ -900,6 +900,8 @@ is highlighted along with the current argument.
 
 Signature help is triggered in insert mode automatically when
 `g:ycm_auto_trigger` is enabled and is not supported when it is not enabled.
+
+Signature help requires Neovim 0.10 or newer when running in Neovim.
 
 The signatures popup is hidden when there are no matching signatures or when you
 leave insert mode. If you want to manually control when it is visible, you can
