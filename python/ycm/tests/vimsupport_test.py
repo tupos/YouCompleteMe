@@ -2163,6 +2163,54 @@ class VimsupportTest( TestCase ):
         ] )
 
 
+  @patch( 'ycm.vimsupport.EditorFeatureSupported',
+          return_value = False )
+  def test_EditorSupportsPopupWindows_Unsupported(
+      self,
+      editor_feature_supported: MagicMock ) -> None:
+    assert_that(
+      vimsupport.EditorSupportsPopupWindows(),
+      equal_to( False )
+    )
+    editor_feature_supported.assert_called_once_with( 'popup_windows' )
+
+
+  @patch( 'ycm.vimsupport.VimSupportsPopupWindows',
+          return_value = True )
+  @patch( 'ycm.vimsupport.VimIsNeovim', return_value = False )
+  @patch( 'ycm.vimsupport.EditorFeatureSupported',
+          return_value = True )
+  def test_EditorSupportsPopupWindows_Vim(
+      self,
+      editor_feature_supported: MagicMock,
+      vim_is_neovim: MagicMock,
+      vim_supports_popup_windows: MagicMock ) -> None:
+    assert_that( vimsupport.EditorSupportsPopupWindows() )
+    editor_feature_supported.assert_called_once_with( 'popup_windows' )
+    vim_is_neovim.assert_called_once_with()
+    vim_supports_popup_windows.assert_called_once_with()
+
+
+  @patch( 'ycm.vimsupport.VimHasFunctions', return_value = True )
+  @patch( 'ycm.vimsupport.VimIsNeovim', return_value = True )
+  @patch( 'ycm.vimsupport.EditorFeatureSupported',
+          return_value = True )
+  def test_EditorSupportsPopupWindows_Neovim(
+      self,
+      editor_feature_supported: MagicMock,
+      vim_is_neovim: MagicMock,
+      vim_has_functions: MagicMock ) -> None:
+    assert_that( vimsupport.EditorSupportsPopupWindows() )
+    editor_feature_supported.assert_called_once_with( 'popup_windows' )
+    vim_is_neovim.assert_called_once_with()
+    vim_has_functions.assert_called_once_with(
+      'nvim_create_buf',
+      'nvim_open_win',
+      'nvim_win_is_valid',
+      'nvim_win_close'
+    )
+
+
   @patch( 'ycm.vimsupport.GetBoolValue', return_value = True )
   def test_EditorFeatureSupported(
       self,

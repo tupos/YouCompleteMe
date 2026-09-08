@@ -831,8 +831,8 @@ class YouCompleteMe:
                     str( SemanticHighlightingSupported() ) )
     debug_info += ( '\nVirtual text supported: ' +
                     str( VirtualTextSupported() ) )
-    debug_info += ( '\nPopup windows supported: ' +
-                    str( vimsupport.VimSupportsPopupWindows() ) )
+    debug_info += ( '\nPopup or floating windows supported: ' +
+                    str( vimsupport.EditorSupportsPopupWindows() ) )
     return debug_info
 
 

@@ -20,6 +20,7 @@ function! Test_EditorSupport_KnownFeaturesReturnSupportStatus() abort
         \ 'completion_info_popup',
         \ 'finder',
         \ 'hierarchy',
+        \ 'popup_windows',
         \ 'semantic_highlighting',
         \ 'signature_help',
         \ 'virtual_text',

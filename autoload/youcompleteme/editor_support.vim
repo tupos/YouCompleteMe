@@ -24,6 +24,7 @@ let s:minimum_neovim_feature_versions = {
       \ 'completion_info_popup': '0.10',
       \ 'finder': '0.9',
       \ 'hierarchy': '0.9',
+      \ 'popup_windows': '0.5',
       \ 'semantic_highlighting': '0.5',
       \ 'signature_help': '0.10',
       \ 'virtual_text': '0.10',

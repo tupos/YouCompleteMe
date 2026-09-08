@@ -1494,6 +1494,19 @@ def VimSupportsPopupWindows():
                           'popup_close' )
 
 
+def EditorSupportsPopupWindows() -> bool:
+  if not EditorFeatureSupported( 'popup_windows' ):
+    return False
+
+  if VimIsNeovim():
+    return VimHasFunctions( 'nvim_create_buf',
+                            'nvim_open_win',
+                            'nvim_win_is_valid',
+                            'nvim_win_close' )
+
+  return VimSupportsPopupWindows()
+
+
 @memoize()
 def VimHasFunction( func ):
   return bool( GetIntValue( f"exists( '*{ EscapeForVim( func ) }' )" ) )

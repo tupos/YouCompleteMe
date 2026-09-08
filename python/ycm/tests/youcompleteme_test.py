@@ -339,8 +339,12 @@ class YouCompleteMeTest( TestCase ):
 
 
   @YouCompleteMeInstance( { 'g:ycm_extra_conf_vim_data': [ 'tempname()' ] } )
-  @patch( 'ycm.vimsupport.VimSupportsPopupWindows', return_value=True )
-  def test_YouCompleteMe_DebugInfo_ServerRunning( self, ycm, *args ):
+  @patch( 'ycm.vimsupport.EditorSupportsPopupWindows',
+          return_value = True )
+  def test_YouCompleteMe_DebugInfo_ServerRunning(
+      self,
+      ycm: YouCompleteMe,
+      editor_supports_popup_windows: MagicMock ) -> None:
     dir_of_script = os.path.dirname( os.path.abspath( __file__ ) )
     buf_name = os.path.join( dir_of_script, 'testdata', 'test.cpp' )
     extra_conf = os.path.join( dir_of_script, 'testdata', '.ycm_extra_conf.py' )
@@ -363,13 +367,21 @@ class YouCompleteMeTest( TestCase ):
           'Server process ID: \\d+\n'
           'Server logfiles:\n'
           '  .+\n'
-          '  .+' )
+          '  .+\n'
+          'Semantic highlighting supported: (False|True)\n'
+          'Virtual text supported: (False|True)\n'
+          'Popup or floating windows supported: True' )
       )
+    editor_supports_popup_windows.assert_called_once_with()
 
 
   @YouCompleteMeInstance()
-  @patch( 'ycm.vimsupport.VimSupportsPopupWindows', return_value=True )
-  def test_YouCompleteMe_DebugInfo_ServerNotRunning( self, ycm, *args ):
+  @patch( 'ycm.vimsupport.EditorSupportsPopupWindows',
+          return_value = True )
+  def test_YouCompleteMe_DebugInfo_ServerNotRunning(
+      self,
+      ycm: YouCompleteMe,
+      editor_supports_popup_windows: MagicMock ) -> None:
     StopServer( ycm )
 
     current_buffer = VimBuffer( 'current_buffer' )
@@ -383,8 +395,12 @@ class YouCompleteMeTest( TestCase ):
           'Server process ID: \\d+\n'
           'Server logfiles:\n'
           '  .+\n'
-          '  .+' )
+          '  .+\n'
+          'Semantic highlighting supported: (False|True)\n'
+          'Virtual text supported: (False|True)\n'
+          'Popup or floating windows supported: True' )
       )
+    editor_supports_popup_windows.assert_called_once_with()
 
 
   @YouCompleteMeInstance()
