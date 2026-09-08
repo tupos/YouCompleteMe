@@ -350,7 +350,10 @@ endtry
 redir @q
 silent function /^Test_
 redir END
-let s:tests = split(substitute(@q, 'function \(\k*()\)', '\1', 'g'))
+let s:tests = map(
+      \ split( @q, "\n" ),
+      \ 'matchstr( v:val, ''^function \zsTest_\k*()'' )' )
+call filter( s:tests, '!empty( v:val )' )
 
 " If there is an extra argument filter the function names against it.
 if argc() > 1
