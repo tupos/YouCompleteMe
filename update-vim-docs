@@ -1,27 +1,29 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 set -x
 
-tmpdir=$(mktemp -d)
-python3 -m venv ${tmpdir}/env
-source ${tmpdir}/env/bin/activate
+repository_directory=$(cd "$(dirname "$0")" && pwd)
+output_file=$(mktemp)
 
-if [ -z "$1" ]; then
-  git clone https://github.com/ycm-core/vim-tools ${tmpdir}/vim-tools
-  TOOLS=${tmpdir}/vim-tools
-else
-  TOOLS="$1"
-fi
+cleanup() {
+  rm -f "${output_file}"
+}
+trap cleanup EXIT
 
-pip install -r ${TOOLS}/requirements.txt
+docker run --rm \
+  --mount \
+    "type=bind,src=${repository_directory},target=/YouCompleteMe,readonly" \
+  --workdir /YouCompleteMe \
+  python:3.12 \
+  bash -c '
+    set -eu
+    git clone --depth 1 \
+      https://github.com/ycm-core/vim-tools /tmp/vim-tools >&2
+    python3 -m pip install --disable-pip-version-check \
+      -r /tmp/vim-tools/requirements.txt >&2
+    exec python3 /tmp/vim-tools/html2vimdoc.py \
+      -f youcompleteme README.md
+  ' > "${output_file}"
 
-pushd $(dirname $0)
-  python3 ${TOOLS}/html2vimdoc.py -f youcompleteme \
-                                   README.md \
-                                   > doc/youcompleteme.txt
-popd
-
-deactivate
-
-rm -rf ${tmpdir}
+mv "${output_file}" "${repository_directory}/doc/youcompleteme.txt"
