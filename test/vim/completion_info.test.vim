@@ -1,33 +1,5 @@
-function! YcmTest_CompletionInfoSupported() abort
-  return exists( '*popup_findinfo' )
-endfunction
-
-
-function! YcmTest_WaitForCompletionInfoHidden() abort
-  call WaitForAssert( {-> assert_true(
-        \ popup_findinfo() == 0 ||
-        \ !popup_getpos( popup_findinfo() ).visible ) } )
-endfunction
-
-
-function! YcmTest_WaitForCompletionInfoVisible() abort
-  call WaitForAssert( {-> assert_true(
-        \ popup_findinfo() != 0 &&
-        \ !empty( popup_getpos( popup_findinfo() ) ) &&
-        \ popup_getpos( popup_findinfo() ).visible ) } )
-endfunction
-
-
-function! YcmTest_CompletionInfoLines( first_line, last_line ) abort
-  let info_popup_id = popup_findinfo()
-  if info_popup_id == 0
-    return []
-  endif
-  return getbufline(
-        \ winbufnr( info_popup_id ),
-        \ a:first_line,
-        \ a:last_line )
-endfunction
+execute 'source ' . fnameescape(
+      \ expand( '<sfile>:p:h' ) . '/completion_info.vim' )
 
 
 function! SetUp()

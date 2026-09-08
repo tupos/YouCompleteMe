@@ -52,6 +52,35 @@ function! YcmTest_SignatureHelpHighlights( window_id ) abort
 endfunction
 
 
+function! YcmTest_SetCharAvailOverride( enabled ) abort
+  " test_override() is a Vim-only test API. Neovim does not need its
+  " char_avail override for this scenario.
+endfunction
+
+
+function! YcmTest_SignatureHelpEmptyBufferHasKnownBug() abort
+  return v:false
+endfunction
+
+
+function! YcmTest_SignatureHelpIsBelowAnchor( window_id ) abort
+  return nvim_win_get_config( a:window_id ).anchor ==# 'NW'
+endfunction
+
+
+function! YcmTest_SignatureHelpScreenRectangle( window_id ) abort
+  let position = screenpos( a:window_id, 1, 1 )
+  return [
+        \ position.row - 2,
+        \ position.col - 2,
+        \ nvim_win_get_height( a:window_id ) + 2,
+        \ nvim_win_get_width( a:window_id ) + 2,
+        \ ]
+endfunction
+
+
+execute 'source ' . fnameescape(
+      \ expand( '<sfile>:p:h' ) . '/completion_info.vim' )
 execute 'source ' . fnameescape(
       \ expand( '<sfile>:p:h:h' ) . '/shared/signature_help.vim' )
 

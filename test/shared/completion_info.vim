@@ -3,6 +3,7 @@ scriptencoding utf-8
 " Shared completion-info integration tests.
 " Editor-specific adapters provide:
 "
+"   YcmTest_CompletionInfoWindowVisible()
 "   YcmTest_CompletionInfoSupported()
 "   YcmTest_WaitForCompletionInfoHidden()
 "   YcmTest_WaitForCompletionInfoVisible()
