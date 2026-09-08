@@ -209,20 +209,20 @@ Installation
 
 ### Requirements
 
-| Runtime | Min Version | Recommended Version (full support) | Python |
-|---------|-------------|------------------------------------|--------|
-| Vim     | 9.1.0016    | 9.1.0016                           | 3.12   |
-| Neovim  | 0.5         | Vim 9.1.0016                       | 3.12   |
+| Runtime | Min Version | Min Version (all features) | Python |
+|---------|-------------|----------------------------|--------|
+| Vim     | 9.1.0016    | 9.1.0016                   | 3.12   |
+| Neovim  | 0.5         | 0.10                       | 3.12   |
 
-#### Supported Vim Versions
+#### Supported Editor Versions
 
 Our policy is to support the Vim version that's in the latest LTS of Ubuntu.
 
 Vim must have a [working Python 3 runtime](#supported-python-runtime).
 
-For Neovim users, our policy is to require the latest released version.
-Currently, Neovim 0.5.0 is required.  Please note that some features are not
-available in Neovim, and Neovim is not officially supported.
+Neovim 0.5 is the minimum supported version. Neovim 0.10 or later is required
+for all features. Neovim is officially supported, and editor-independent
+behavior is covered by the same integration test suites as Vim.
 
 #### Supported Python runtime
 
@@ -1000,7 +1000,7 @@ endfor
 
 ## Inlay hints
 
-**NOTE**: Highly experimental feature, requiring Vim 9.0.214 or later, or
+**NOTE**: This is a highly experimental feature. In Neovim, it requires
 Neovim 0.10 or later.
 
 When `g:ycm_enable_inlay_hints` (globally) or `b:ycm_enable_inlay_hints` (for a
@@ -1840,6 +1840,8 @@ highlight YcmErrorLine guibg=#3f0000
 YCM provides a way to search for and jump to a symbol in the current project or
 document when using supported languages.
 
+In Neovim, this feature requires Neovim 0.9 or later.
+
 You can search for symbols in the current workspace when the `GoToSymbol`
 request is supported and the current document when `GoToDocumentOutline` is
 supported.
@@ -2498,7 +2500,6 @@ to the center section:
 function! s:AddYcmProgressToAirline() abort
   let g:airline_section_c .= ' %{youcompleteme#GetStatus()}'
 endfunction
-
 augroup ycm_airline_progress
   autocmd!
   autocmd User AirlineAfterInit call <SID>AddYcmProgressToAirline()
@@ -3029,6 +3030,8 @@ available for the current diagnostic, then ` (FixIt)` is appended.
 If your editor supports virtual text, you can set this option to the string
 `virtual-text`, and the diagnostic will be displayed after the text on the
 current line, wrapping onto the next screen line when needed. For example:
+
+In Neovim, virtual-text diagnostics require Neovim 0.10 or later.
 
 ![Virtual text diagnostic demo][diagnostic-echo-virtual-text1]
 

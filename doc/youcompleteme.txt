@@ -10,7 +10,7 @@ Contents ~
   2. Intro                                                |youcompleteme-intro|
   3. Installation                                  |youcompleteme-installation|
    1. Requirements                                 |youcompleteme-requirements|
-    1. Supported Vim Versions            |youcompleteme-supported-vim-versions|
+    1. Supported Editor Versions      |youcompleteme-supported-editor-versions|
     2. Supported Python runtime        |youcompleteme-supported-python-runtime|
     3. Supported Compilers                  |youcompleteme-supported-compilers|
     4. Individual completer requirements |youcompleteme-individual-completer-requirements|
@@ -388,7 +388,7 @@ including:
   interactive symbol finder
 - displaying type information for classes, variables, functions etc.,
 - displaying documentation for methods, members, etc. in the preview window,
-  or in a popup next to the cursor (Vim only)
+  or in a popup next to the cursor
 - fixing common coding errors, like missing semi-colons, typos, etc.,
 - semantic renaming of variables across files,
 - formatting code,
@@ -429,26 +429,26 @@ Installation ~
                                                    *youcompleteme-requirements*
 Requirements ~
 
-===============================================================================
-| _Runtime_ | _Min Version_ | _Recommended Version (full support)_ | _Python_ |
-===============================================================================
-| Vim       | 9.1.0016      | 9.1.0016                             | 3.12     |
--------------------------------------------------------------------------------
-| Neovim    | 0.5           | Vim 9.1.0016                         | 3.12     |
--------------------------------------------------------------------------------
+=======================================================================
+| _Runtime_ | _Min Version_ | _Min Version (all features)_ | _Python_ |
+=======================================================================
+| Vim       | 9.1.0016      | 9.1.0016                     | 3.12     |
+-----------------------------------------------------------------------
+| Neovim    | 0.5           | 0.10                         | 3.12     |
+-----------------------------------------------------------------------
 
 
 -------------------------------------------------------------------------------
-                                         *youcompleteme-supported-vim-versions*
-Supported Vim Versions ~
+                                      *youcompleteme-supported-editor-versions*
+Supported Editor Versions ~
 
 Our policy is to support the Vim version that's in the latest LTS of Ubuntu.
 
 Vim must have a working Python 3 runtime.
 
-For Neovim users, our policy is to require the latest released version.
-Currently, Neovim 0.5.0 is required. Please note that some features are not
-available in Neovim, and Neovim is not officially supported.
+Neovim 0.5 is the minimum supported version. Neovim 0.10 or later is required
+for all features. Neovim is officially supported, and editor-independent
+behavior is covered by the same integration test suites as Vim.
 
 -------------------------------------------------------------------------------
                                        *youcompleteme-supported-python-runtime*
@@ -1163,10 +1163,10 @@ per buffer, by setting 'b:ycm_enable_semantic_highlighting'.
                                    *youcompleteme-customising-highlight-groups*
 Customising the highlight groups ~
 
-YCM uses text properties (see ':help text-prop-intro') in Vim and extmarks
-(see ':help extmarks') in Neovim for semantic highlighting. In order to
-customise the coloring, define the corresponding Vim text properties or
-Neovim highlight groups.
+YCM uses text properties (see ':help text-prop-intro') in Vim and extmarks (see
+':help extmarks') in Neovim for semantic highlighting. In order to customise
+the coloring, define the corresponding Vim text properties or Neovim highlight
+groups.
 
 If you define a Vim text property or Neovim highlight group named
 'YCM_HL_<token type>', then it will be used in place of the defaults. The
@@ -1175,8 +1175,8 @@ If you define a Vim text property or Neovim highlight group named
 Some servers also use custom values. In this case, YCM prints a warning
 including the token type name that you can customise.
 
-For example, to render 'parameter' tokens using the 'Normal' highlight group
-in Vim:
+For example, to render 'parameter' tokens using the 'Normal' highlight group in
+Vim:
 >
   call prop_type_add( 'YCM_HL_parameter', { 'highlight': 'Normal' } )
 <
@@ -1213,8 +1213,8 @@ More generally, this pattern can be useful for customising the groups:
                                                     *youcompleteme-inlay-hints*
 Inlay hints ~
 
-**NOTE**: Highly experimental feature, requiring Vim 9.0.214 or later, or
-Neovim 0.10 or later.
+**NOTE**: This is a highly experimental feature. In Neovim, it requires Neovim
+0.10 or later.
 
 When 'g:ycm_enable_inlay_hints' (globally) or 'b:ycm_enable_inlay_hints' (for a
 specific buffer) is set to '1', then YCM will insert inlay hints as supported
@@ -1816,7 +1816,7 @@ tags:
     if kwargs[ 'language' ] == 'go':
       return {
          'ls': {
-           'build.buildFlags': [ '-tags=debug' ] }
+           'build.buildFlags': [ '-tags=debug' ]
          }
       }
 <
@@ -2085,6 +2085,8 @@ Symbol Search ~
 YCM provides a way to search for and jump to a symbol in the current project or
 document when using supported languages.
 
+In Neovim, this feature requires Neovim 0.9 or later.
+
 You can search for symbols in the current workspace when the 'GoToSymbol'
 request is supported and the current document when |GoToDocumentOutline| is
 supported.
@@ -2181,17 +2183,24 @@ When the hierarchy is displayed, the following keys are intercepted:
 
 - '<Tab>': Drill into the hierarchy at the selected item: expand and show
   children of the selected item.
+
 - '<S-Tab>': Show parents of the selected item. When applied to sub-types,
   this will re-root the tree at that type, so that all parent types (are
   displayed). Similar for callers.
+
 - '<CR>': Jump to the symbol currently selected.
+
 - '<Down>', '<C-n>', '<C-j>', 'j': Select the next item
+
 - '<Up>', '<C-p>', '<C-k>', 'k'; Select the previous item
+
 - '<Esc>', '<C-c>': Close the hierarchy without jumping to any location.
+
 - In Vim, any other key closes the hierarchy and is then processed by the
   source window.
-- In Neovim, 'q' closes the hierarchy. Other unmapped keys act normally in the
-  hierarchy window.
+
+- In Neovim, 'q' closes the hierarchy. Other unmapped keys act normally in
+  the hierarchy window.
 
 **Note:** you might think the call hierarchy tree is inverted, but we think
 this way round is more intuitive because this is the typical way that call
@@ -2771,35 +2780,30 @@ For example:
   call youcompleteme#GetWarningCount()
 <
 -------------------------------------------------------------------------------
-                                             *youcompleteme#GetStatus()*
-The 'youcompleteme#GetStatus( ... )' function ~
+The *youcompleteme#GetStatus()* function
 
 Returns the current YCM status text. Language Server Protocol work-done
 progress is displayed with an animated spinner, title, message, and percentage
-when provided by the language server. For example: >
-
+when provided by the language server. Add it to the statusline with:
+>
   set statusline^=%{youcompleteme#GetStatus()}
 <
 Pass a truthy argument to escape '%' as '%%' for statusline integrations that
-interpret the returned value as a statusline format string: >
+interpret the returned value as a statusline format string. The function
+returns an empty string when there is no active progress.
 
-  call youcompleteme#GetStatus( 1 )
-<
-The function returns an empty string when there is no active progress.
-
-For vim-airline [106], define a component after Airline initializes and append
-it to the center section: >
-
+For vim-airline [93], define a component after Airline initializes and append
+it to the center section:
+>
   function! s:AddYcmProgressToAirline() abort
     let g:airline_section_c .= ' %{youcompleteme#GetStatus()}'
   endfunction
-
   augroup ycm_airline_progress
     autocmd!
     autocmd User AirlineAfterInit call <SID>AddYcmProgressToAirline()
   augroup END
 <
-The existing `g:airline#extensions#ycm#enabled` option controls Airline's YCM
+The existing 'g:airline#extensions#ycm#enabled' option controls Airline's YCM
 diagnostic counters; it does not add the progress status.
 
 -------------------------------------------------------------------------------
@@ -2934,8 +2938,8 @@ The *YcmStatusChanged* autocommand
 
 This 'User' autocommand is fired whenever the value returned by
 |youcompleteme#GetStatus()| changes. Statusline plugins can use it to refresh
-their display. For example: >
-
+their display:
+>
   autocmd User YcmStatusChanged redrawstatus
 <
 -------------------------------------------------------------------------------
@@ -3297,9 +3301,11 @@ If your editor supports virtual text, you can set this option to the string
 'virtual-text', and the diagnostic will be displayed after the text on the
 current line, wrapping onto the next screen line when needed. For example:
 
-  Image: Virtual text diagnostic demo (see reference [93])
+In Neovim, virtual-text diagnostics require Neovim 0.10 or later.
 
   Image: Virtual text diagnostic demo (see reference [94])
+
+  Image: Virtual text diagnostic demo (see reference [95])
 
 **NOTE**: It's _strongly_ recommended to also set
 |g:ycm_update_diagnostics_in_insert_mode| to '0' when using 'virtual-text' for
@@ -3355,8 +3361,10 @@ You can customise this by manually setting up 'b:ycm_hover' to your liking.
 This buffer-local variable can be set to a dictionary with the following keys:
 
 - 'command': The YCM completer subcommand which should be run on hover
+
 - 'syntax': The syntax to use (as in 'set syntax=') in the popup window for
   highlighting.
+
 - 'popup_params': Editor-specific parameters passed to the popup or
   floating-window implementation.
 
@@ -3389,9 +3397,9 @@ can limit the popup's maximum width and add a border to it:
       \ }
   augroup END
 <
-In Vim, these parameters are passed to 'popup_atcursor()'. In Neovim,
-supported parameters are passed to 'vim.lsp.util.open_floating_preview()'. The
-Vim 'maxwidth' and 'maxheight' names are accepted as aliases for Neovim's
+In Vim, these parameters are passed to 'popup_atcursor()'. In Neovim, supported
+parameters are passed to 'vim.lsp.util.open_floating_preview()'. The Vim
+'maxwidth' and 'maxheight' names are accepted as aliases for Neovim's
 'max_width' and 'max_height' options.
 
 Default: "'CursorHold'"
@@ -3411,7 +3419,7 @@ YCM will not render it.
 
 The following filter types are supported:
 
-- "regex": Accepts a string regular expression [95]. This type matches when
+- "regex": Accepts a string regular expression [96]. This type matches when
   the regex (treated as case-insensitive) is found anywhere in the diagnostic
   text ('re.search', not 're.match')
 
@@ -3419,7 +3427,7 @@ The following filter types are supported:
   matches when the diagnostic has the same level, that is, specifying 'level:
   "error"' will remove **all** errors from the diagnostics.
 
-**NOTE:** The regex syntax is **NOT** Vim's, it's Python's [95].
+**NOTE:** The regex syntax is **NOT** Vim's, it's Python's [96].
 
 Default: '{}'
 
@@ -3514,7 +3522,7 @@ from the 'tagfiles()' Vim function which examines the 'tags' Vim option. See
 
 YCM will re-index your tags files if it detects that they have been modified.
 
-The only supported tag format is the Exuberant Ctags format [96]. The format
+The only supported tag format is the Exuberant Ctags format [97]. The format
 from "plain" ctags is NOT supported. Ctags needs to be called with the
 '--fields=+l' option (that's a lowercase 'L', not a one) because YCM needs the
 'language:<lang>' field in the tags output.
@@ -3668,11 +3676,11 @@ The *g:ycm_add_preview_to_completeopt* option
 
 When this option is set to '1', YCM will add the 'preview' string to Vim's
 'completeopt' option (see ':h completeopt'). If your 'completeopt' option
-already has 'preview' set, there will be no effect. Alternatively, when set
-to 'popup' and your editor supports popup completion information, the 'popup'
-string will be used instead. This requires Neovim 0.10 or later when running
-in Neovim. You can see the current state of your 'completeopt' setting with
-':set completeopt?' (yes, the question mark is important).
+already has 'preview' set, there will be no effect. Alternatively, when set to
+'popup' and your editor supports popup completion information, the 'popup'
+string will be used instead. This requires Neovim 0.10 or later when running in
+Neovim. You can see the current state of your 'completeopt' setting with ':set
+completeopt?' (yes, the question mark is important).
 
 When 'preview' is present in 'completeopt', YCM will use the 'preview' window
 at the top of the file to store detailed information about the current
@@ -3918,7 +3926,7 @@ It's also possible to use a regular expression as a trigger. You have to prefix
 your trigger with 're!' to signify it's a regex trigger. For instance,
 're!\w+\.' would only trigger after the '\w+\.' regex matches.
 
-**NOTE:** The regex syntax is **NOT** Vim's, it's Python's [95].
+**NOTE:** The regex syntax is **NOT** Vim's, it's Python's [96].
 
 Default: '[see next line]'
 >
@@ -4162,17 +4170,17 @@ The FAQ section has been moved to the wiki [8].
 Contributor Code of Conduct ~
 
 Please note that this project is released with a Contributor Code of Conduct
-[97]. By participating in this project you agree to abide by its terms.
+[98]. By participating in this project you agree to abide by its terms.
 
 -------------------------------------------------------------------------------
                                                         *youcompleteme-contact*
 Contact ~
 
 If you have questions about the plugin or need help, please join the Gitter
-room [1] or use the ycm-users [98] mailing list.
+room [1] or use the ycm-users [99] mailing list.
 
 If you have bug reports or feature suggestions, please use the issue tracker
-[99]. Before you do, please carefully read CONTRIBUTING.md [100] as this asks
+[100]. Before you do, please carefully read CONTRIBUTING.md [101] as this asks
 for important diagnostics which the team will use to help get you going.
 
 The latest version of the plugin is available at
@@ -4187,7 +4195,7 @@ contact the YouCompleteMe maintainers directly using the contact details.
                                                         *youcompleteme-license*
 License ~
 
-This software is licensed under the GPL v3 license [101]. © 2015-2018
+This software is licensed under the GPL v3 license [102]. © 2015-2018
 YouCompleteMe contributors
 
 -------------------------------------------------------------------------------
@@ -4198,10 +4206,10 @@ If you like YCM so much that you're willing to part with your hard-earned cash,
 please consider donating to one of the following charities, which are
 meaningful to the current maintainers (in no particular order):
 
-- Hector's Greyhound Rescue [102]
-- Be Humane [103]
-- Cancer Research UK [104]
-- ICCF Holland [105]
+- Hector's Greyhound Rescue [103]
+- Be Humane [104]
+- Cancer Research UK [105]
+- ICCF Holland [106]
 - Any charity of your choosing.
 
 Please note: The YCM maintainers do not specifically endorse nor necessarily
@@ -4304,19 +4312,19 @@ References ~
 [90] https://jedi.readthedocs.io/en/latest/docs/api.html#jedi.Script.extract_variable
 [91] https://github.com/puremourning/vimspector
 [92] https://github.com/itchyny/lightline.vim
-[93] https://user-images.githubusercontent.com/10584846/185707973-39703699-0263-47d3-82ac-639d52259bea.png
-[94] https://user-images.githubusercontent.com/10584846/185707993-14ff5fd7-c082-4e5a-b825-f1364e619b6a.png
-[95] https://docs.python.org/2/library/re.html#regular-expression-syntax
-[96] http://ctags.sourceforge.net/FORMAT
-[97] https://github.com/ycm-core/YouCompleteMe/blob/master/CODE_OF_CONDUCT.md
-[98] https://groups.google.com/forum/?hl=en#!forum/ycm-users
-[99] https://github.com/ycm-core/YouCompleteMe/issues?state=open
-[100] https://github.com/ycm-core/YouCompleteMe/blob/master/CONTRIBUTING.md
-[101] https://www.gnu.org/copyleft/gpl.html
-[102] https://www.hectorsgreyhoundrescue.org
-[103] https://www.budihuman.rs/en
-[104] https://www.cancerresearchuk.org
-[105] https://iccf.nl
-[106] https://github.com/vim-airline/vim-airline
+[93] https://github.com/vim-airline/vim-airline
+[94] https://user-images.githubusercontent.com/10584846/185707973-39703699-0263-47d3-82ac-639d52259bea.png
+[95] https://user-images.githubusercontent.com/10584846/185707993-14ff5fd7-c082-4e5a-b825-f1364e619b6a.png
+[96] https://docs.python.org/2/library/re.html#regular-expression-syntax
+[97] http://ctags.sourceforge.net/FORMAT
+[98] https://github.com/ycm-core/YouCompleteMe/blob/master/CODE_OF_CONDUCT.md
+[99] https://groups.google.com/forum/?hl=en#!forum/ycm-users
+[100] https://github.com/ycm-core/YouCompleteMe/issues?state=open
+[101] https://github.com/ycm-core/YouCompleteMe/blob/master/CONTRIBUTING.md
+[102] https://www.gnu.org/copyleft/gpl.html
+[103] https://www.hectorsgreyhoundrescue.org
+[104] https://www.budihuman.rs/en
+[105] https://www.cancerresearchuk.org
+[106] https://iccf.nl
 
 vim: ft=help
