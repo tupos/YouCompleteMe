@@ -20,6 +20,7 @@ from ycm.client.base_request import ( BaseRequest,
                                       MakeServerException )
 from ycm.client.completion_request import ( CompletionRequest,
                                             ConvertCompletionDataToVimData )
+from ycm.client.request_operation import RequestOperationManager
 
 import logging
 import json
@@ -27,16 +28,22 @@ _logger = logging.getLogger( __name__ )
 
 
 class ResolveCompletionRequest( BaseRequest ):
-  def __init__( self,
-                completion_request: CompletionRequest,
-                request_data ):
-    super().__init__()
+  def __init__(
+      self,
+      completion_request: CompletionRequest,
+      request_data: dict[ str, object ],
+      request_operation_manager: RequestOperationManager
+  ) -> None:
+    super().__init__( request_operation_manager )
     self.request_data = request_data
     self.completion_request = completion_request
 
-  def Start( self ):
-    self._response_future = self.PostDataToHandlerAsync( self.request_data,
-                                                         'resolve_completion' )
+
+  def Start( self ) -> None:
+    self._response_future = self.PostCancellableDataToHandlerAsync(
+      self.request_data,
+      'resolve_completion'
+    )
 
   def Done( self ):
     return bool( self._response_future ) and self._response_future.done()
@@ -72,7 +79,11 @@ class ResolveCompletionRequest( BaseRequest ):
     return response
 
 
-def ResolveCompletionItem( completion_request, item ):
+def ResolveCompletionItem(
+    completion_request: CompletionRequest | ResolveCompletionRequest,
+    item: dict[ str, object ],
+    request_operation_manager: RequestOperationManager
+) -> ResolveCompletionRequest | None:
   if not completion_request.Done():
     return None
   try:
@@ -93,6 +104,10 @@ def ResolveCompletionItem( completion_request, item ):
   except KeyError:
     return None
 
-  resolve_request = ResolveCompletionRequest( completion_request, request_data )
+  resolve_request = ResolveCompletionRequest(
+    completion_request,
+    request_data,
+    request_operation_manager
+  )
   resolve_request.Start()
   return resolve_request

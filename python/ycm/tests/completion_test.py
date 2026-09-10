@@ -20,6 +20,7 @@ from ycm.tests.test_utils import ( CurrentWorkingDirectory, ExtendedMock,
 MockVimModule()
 
 import contextlib
+from concurrent.futures import Future
 from hamcrest import ( assert_that,
                        contains_exactly,
                        empty,
@@ -30,6 +31,9 @@ from unittest.mock import call, MagicMock, patch
 
 from ycm.tests import PathToTestFile, YouCompleteMeInstance
 from ycmd.responses import ServerError
+from ycm.client.base_request import BaseRequest
+from ycm.client.request_operation import YCM_OPERATION_ID
+from ycm.youcompleteme import YouCompleteMe
 
 import json
 
@@ -44,7 +48,7 @@ def MockCompletionRequest( response_method ):
   with patch( 'ycm.client.completer_available_request.'
               'CompleterAvailableRequest.PostDataToHandler',
               return_value = True ):
-    with patch( 'ycm.client.completion_request.CompletionRequest.'
+    with patch( 'ycm.client.base_request.BaseRequest.'
                 'PostDataToHandlerAsync',
                 return_value = MagicMock( return_value=True ) ):
 
@@ -59,7 +63,7 @@ def MockResolveRequest( response_method ):
   """Mock out the CompletionRequest, replacing the response handler
   JsonFromFuture with the |response_method| parameter."""
 
-  with patch( 'ycm.client.resolve_completion_request.ResolveCompletionRequest.'
+  with patch( 'ycm.client.base_request.BaseRequest.'
               'PostDataToHandlerAsync',
               return_value = MagicMock( return_value=True ) ):
 
@@ -163,6 +167,7 @@ class CompletionTest( TestCase ):
         post_vim_message.assert_has_exact_calls( [
           call( 'Server error', truncate = True )
         ] )
+
         assert_that(
           response,
           has_entries( {
@@ -170,6 +175,62 @@ class CompletionTest( TestCase ):
             'completion_start_column': -1
           } )
         )
+
+
+  @YouCompleteMeInstance()
+  def test_SendCompletionRequest_CancelsPreviousRequest(
+      self,
+      ycm: YouCompleteMe
+  ) -> None:
+    current_buffer = VimBuffer( 'buffer' )
+    first_future: Future[ object ] = Future()
+    cancellation_future: Future[ object ] = Future()
+    second_future: Future[ object ] = Future()
+
+    with MockVimBuffers( [ current_buffer ], [ current_buffer ] ):
+      with patch(
+          'ycm.client.completer_available_request.'
+          'CompleterAvailableRequest.PostDataToHandler',
+          return_value = True
+      ):
+        with patch.object(
+            BaseRequest,
+            'PostDataToHandlerAsync',
+            side_effect = [
+              first_future,
+              cancellation_future,
+              second_future,
+            ]
+        ) as post_request:
+          ycm.SendCompletionRequest()
+          ycm.SendCompletionRequest()
+
+    posted_requests = post_request.call_args_list
+    assert_that(
+      [
+        request_call.args[ 1 ]
+        for request_call in posted_requests
+      ],
+      contains_exactly(
+        'completions',
+        'cancel_request',
+        'completions'
+      )
+    )
+    assert_that(
+      posted_requests[ 0 ].args[ 0 ][ YCM_OPERATION_ID ],
+      equal_to( 0 )
+    )
+    assert_that(
+      posted_requests[ 1 ].args[ 0 ],
+      equal_to( {
+        YCM_OPERATION_ID: 0,
+      } )
+    )
+    assert_that(
+      posted_requests[ 2 ].args[ 0 ][ YCM_OPERATION_ID ],
+      equal_to( 1 )
+    )
 
 
 

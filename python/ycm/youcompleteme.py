@@ -31,7 +31,10 @@ from ycm.omni_completer import OmniCompleter
 from ycm import syntax_parse
 from ycm.hierarchy_tree import HierarchyTree
 from ycm.client.ycmd_keepalive import YcmdKeepalive
-from ycm.client.base_request import BaseRequest, BuildRequestData
+from ycm.client.base_request import ( BaseRequest,
+                                      BuildRequestData,
+                                      SendCancellationRequest )
+from ycm.client.request_operation import RequestOperationManager
 from ycm.client.completer_available_request import SendCompleterAvailableRequest
 from ycm.client.command_request import ( SendCommandRequest,
                                          SendCommandRequestAsync,
@@ -175,6 +178,9 @@ class YouCompleteMe:
     self._message_poll_requests = {}
     self._work_done_progress = WorkDoneProgressState()
 
+    self._request_operation_manager = RequestOperationManager(
+      SendCancellationRequest
+    )
     self._latest_completion_request = None
     self._latest_signature_help_request = None
     self._signature_help_available_requests = SigHelpAvailableByFileType()
@@ -335,7 +341,13 @@ class YouCompleteMe:
     self._SetUpServer()
 
 
-  def SendCompletionRequest( self, force_semantic = False ):
+  def SendCompletionRequest(
+      self,
+      force_semantic: bool = False
+  ) -> None:
+    if self._latest_completion_request is not None:
+      self._latest_completion_request.Cancel()
+
     request_data = BuildRequestData()
     request_data[ 'force_semantic' ] = force_semantic
 
@@ -348,7 +360,10 @@ class YouCompleteMe:
         return
 
     self._AddExtraConfDataIfNeeded( request_data )
-    self._latest_completion_request = CompletionRequest( request_data )
+    self._latest_completion_request = CompletionRequest(
+      request_data,
+      self._request_operation_manager
+    )
     self._latest_completion_request.Start()
 
 
@@ -708,7 +723,10 @@ class YouCompleteMe:
       completion_request.OnCompleteDone()
 
 
-  def ResolveCompletionItem( self, item ):
+  def ResolveCompletionItem(
+      self,
+      item: dict[ str, object ]
+  ) -> bool:
     # Note: As mentioned elsewhere, we replace the current completion request
     # with a resolve request. It's not valid to have simultaneous resolve and
     # completion requests, because the resolve request uses the request data
@@ -724,7 +742,11 @@ class YouCompleteMe:
     if not completion_request:
       return False
 
-    request  = ResolveCompletionItem( completion_request, item )
+    request = ResolveCompletionItem(
+      completion_request,
+      item,
+      self._request_operation_manager
+    )
     if not request:
       return False
 
