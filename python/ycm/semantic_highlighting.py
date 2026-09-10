@@ -18,6 +18,7 @@
 
 from ycm.client.semantic_tokens_request import SemanticTokensRequest
 from ycm.client.base_request import BuildRequestData
+from ycm.client.request_operation import RequestOperationManager
 from ycm import scrolling_range as sr
 from ycm import vimsupport
 from ycm.semantic_highlighting_renderer import (
@@ -85,8 +86,10 @@ class SemanticHighlighting( sr.ScrollingBufferRange ):
   def __init__(
       self,
       bufnr: int,
+      request_operation_manager: RequestOperationManager,
       renderer: SemanticHighlightingRenderer | None = None ) -> None:
     super().__init__( bufnr )
+    self._request_operation_manager = request_operation_manager
     self._renderer: SemanticHighlightingRenderer = (
       renderer
       if renderer is not None
@@ -102,7 +105,10 @@ class SemanticHighlighting( sr.ScrollingBufferRange ):
   ) -> SemanticTokensRequest:
     request: dict[ str, object ] = BuildRequestData( self._bufnr )
     request[ 'range' ] = request_range
-    return SemanticTokensRequest( request )
+    return SemanticTokensRequest(
+      request,
+      self._request_operation_manager
+    )
 
 
   def _Draw( self ) -> None:

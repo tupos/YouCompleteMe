@@ -14,6 +14,7 @@ import json
 import vim
 
 from ycm import semantic_highlighting
+from ycm.client.request_operation import RequestOperationManager
 
 
 YCM_TEST_SEMANTIC_HIGHLIGHTING_SUPPORTED: bool = (
@@ -23,6 +24,10 @@ YCM_TEST_SEMANTIC_HIGHLIGHTERS: dict[
   int,
   semantic_highlighting.SemanticHighlighting
 ] = {}
+YCM_TEST_CANCELLATION_REQUESTS: list[ dict[ str, object ] ] = []
+YCM_TEST_REQUEST_OPERATION_MANAGER: RequestOperationManager = (
+  RequestOperationManager( YCM_TEST_CANCELLATION_REQUESTS.append )
+)
 
 
 def YcmTestDrawSemanticHighlights(
@@ -36,7 +41,8 @@ def YcmTestDrawSemanticHighlights(
   highlighter = YCM_TEST_SEMANTIC_HIGHLIGHTERS.get( buffer_number )
   if highlighter is None:
     highlighter = semantic_highlighting.SemanticHighlighting(
-      buffer_number
+      buffer_number,
+      YCM_TEST_REQUEST_OPERATION_MANAGER
     )
     requested_range: dict[
       str,

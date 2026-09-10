@@ -17,10 +17,15 @@ import json
 import vim
 
 from ycm import inlay_hints
+from ycm.client.request_operation import RequestOperationManager
 
 
 YCM_TEST_INLAY_HINTS_SUPPORTED: bool = inlay_hints.Initialise()
 YCM_TEST_INLAY_HINTS: dict[ int, inlay_hints.InlayHints ] = {}
+YCM_TEST_CANCELLATION_REQUESTS: list[ dict[ str, object ] ] = []
+YCM_TEST_REQUEST_OPERATION_MANAGER: RequestOperationManager = (
+  RequestOperationManager( YCM_TEST_CANCELLATION_REQUESTS.append )
+)
 
 
 def YcmTestDrawInlayHints(
@@ -33,7 +38,10 @@ def YcmTestDrawInlayHints(
     buffer_number
   )
   if hints is None:
-    hints = inlay_hints.InlayHints( buffer_number )
+    hints = inlay_hints.InlayHints(
+      buffer_number,
+      YCM_TEST_REQUEST_OPERATION_MANAGER
+    )
     requested_range: dict[
       str,
       dict[ str, int | None ]

@@ -19,6 +19,7 @@
 import logging
 from ycm.client.base_request import ( BaseRequest, DisplayServerException,
                                       MakeServerException )
+from ycm.client.request_operation import RequestOperationManager
 
 _logger = logging.getLogger( __name__ )
 
@@ -26,24 +27,32 @@ _logger = logging.getLogger( __name__ )
 # FIXME: This is copy/pasta from SemanticTokensRequest - abstract a
 # SimpleAsyncRequest base that does all of this generically
 class InlayHintsRequest( BaseRequest ):
-  def __init__( self, request_data ):
-    super().__init__()
+  def __init__(
+      self,
+      request_data: dict[ str, object ],
+      request_operation_manager: RequestOperationManager
+  ) -> None:
+    super().__init__( request_operation_manager )
     self.request_data = request_data
     self._response_future = None
 
 
-  def Start( self ):
-    self._response_future = self.PostDataToHandlerAsync( self.request_data,
-                                                         'inlay_hints' )
+  def Start( self ) -> None:
+    self._response_future = self.PostCancellableDataToHandlerAsync(
+      self.request_data,
+      'inlay_hints'
+    )
 
-  def Done( self ):
+  def Done( self ) -> bool:
     return bool( self._response_future ) and self._response_future.done()
 
 
-  def Reset( self ):
+  def Reset( self ) -> None:
+    self.Cancel()
     self._response_future = None
 
-  def Response( self ):
+
+  def Response( self ) -> list[ dict[ str, object ] ]:
     if not self._response_future:
       return []
 

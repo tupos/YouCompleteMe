@@ -18,6 +18,7 @@
 
 from ycm.client.inlay_hints_request import InlayHintsRequest
 from ycm.client.base_request import BuildRequestData
+from ycm.client.request_operation import RequestOperationManager
 from ycm import scrolling_range as sr
 from ycm.virtual_text import ( CreateVirtualTextRenderer,
                                VirtualTextChunk,
@@ -54,8 +55,10 @@ class InlayHints( sr.ScrollingBufferRange ):
   def __init__(
       self,
       bufnr: int,
+      request_operation_manager: RequestOperationManager,
       renderer: VirtualTextRenderer | None = None ) -> None:
     super().__init__( bufnr )
+    self._request_operation_manager = request_operation_manager
     self._renderer: VirtualTextRenderer = (
       renderer
       if renderer is not None
@@ -72,7 +75,10 @@ class InlayHints( sr.ScrollingBufferRange ):
   ) -> InlayHintsRequest:
     request_data: dict[ str, object ] = BuildRequestData( self._bufnr )
     request_data[ 'range' ] = request_range
-    return InlayHintsRequest( request_data )
+    return InlayHintsRequest(
+      request_data,
+      self._request_operation_manager
+    )
 
 
   def Clear( self ) -> None:

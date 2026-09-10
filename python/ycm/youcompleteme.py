@@ -188,7 +188,10 @@ class YouCompleteMe:
     self._next_command_request_id = 0
     self._user_options = base.GetUserOptions( self._default_options )
     self._omnicomp = OmniCompleter( self._user_options )
-    self._buffers = BufferDict( self._user_options )
+    self._buffers = BufferDict(
+      self._user_options,
+      self._request_operation_manager
+    )
 
     self._SetLogLevel()
 

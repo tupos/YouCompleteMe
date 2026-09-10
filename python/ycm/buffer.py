@@ -16,6 +16,7 @@
 # along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 
 from ycm import vimsupport
+from ycm.client.request_operation import RequestOperationManager
 from ycm.client.event_notification import EventNotification
 from ycm.diagnostic_interface import DiagnosticInterface
 from ycm.semantic_highlighting import SemanticHighlighting
@@ -28,7 +29,13 @@ from ycm.inlay_hints import InlayHints
 # to effectively determine whether reparse is needed for the buffer.
 class Buffer:
 
-  def __init__( self, bufnr, user_options, filetypes ):
+  def __init__(
+      self,
+      bufnr: int,
+      user_options: dict[ str, object ],
+      filetypes: list[ str ],
+      request_operation_manager: RequestOperationManager
+  ) -> None:
     self._number = bufnr
     self._parse_tick = 0
     self._handled_tick = 0
@@ -37,8 +44,14 @@ class Buffer:
     self._diag_interface = DiagnosticInterface( bufnr, user_options )
     self._open_loclist_on_ycm_diags = user_options[
                                         'open_loclist_on_ycm_diags' ]
-    self.semantic_highlighting = SemanticHighlighting( bufnr )
-    self.inlay_hints = InlayHints( bufnr )
+    self.semantic_highlighting = SemanticHighlighting(
+      bufnr,
+      request_operation_manager
+    )
+    self.inlay_hints = InlayHints(
+      bufnr,
+      request_operation_manager
+    )
     self.UpdateFromFileTypes( filetypes )
 
 
@@ -149,17 +162,24 @@ class Buffer:
     return vimsupport.GetBufferChangedTick( self._number )
 
 
-class BufferDict( dict ):
+class BufferDict( dict[ int, Buffer ] ):
 
-  def __init__( self, user_options ):
+  def __init__(
+      self,
+      user_options: dict[ str, object ],
+      request_operation_manager: RequestOperationManager
+  ) -> None:
     self._user_options = user_options
+    self._request_operation_manager = request_operation_manager
 
 
-  def __missing__( self, key ):
+  def __missing__( self, key: int ) -> Buffer:
     # Python does not allow to return assignment operation result directly
     new_value = self[ key ] = Buffer(
       key,
       self._user_options,
-      vimsupport.GetBufferFiletypes( key ) )
+      vimsupport.GetBufferFiletypes( key ),
+      self._request_operation_manager
+    )
 
     return new_value
