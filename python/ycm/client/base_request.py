@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from functools import partial
 import logging
 import json
 from typing import Any, Protocol
@@ -31,7 +32,8 @@ from urllib.error import URLError, HTTPError
 from ycm import vimsupport
 from ycm.client.request_operation import ( OperationFuture,
                                            RequestOperation,
-                                           RequestOperationManager )
+                                           RequestOperationManager,
+                                           YCM_OPERATION_ID )
 from ycmd.utils import ToBytes, GetCurrentDirectory, ToUnicode
 from ycmd.hmac_utils import CreateRequestHmac, CreateHmac
 from ycmd.responses import ServerError, UnknownExtraConf
@@ -176,6 +178,11 @@ class BaseRequest:
     self.Cancel()
     operation = self._request_operation_manager.StartOperation( data )
     self._request_operation = operation
+    _logger.debug(
+      'Sending cancellable HTTP request to %s as operation %d',
+      handler,
+      operation.operation_id
+    )
 
     try:
       future = BaseRequest.PostDataToHandlerAsync(
@@ -287,23 +294,49 @@ def SendCancellationRequest(
     request_data: dict[ str, object ]
 ) -> None:
   """Send a best-effort cancellation request without blocking the editor."""
+  operation_id: object = request_data.get( YCM_OPERATION_ID )
+  _logger.debug(
+    'Sending cancellation request for operation %r',
+    operation_id
+  )
+
   try:
     future = BaseRequest.PostDataToHandlerAsync(
       request_data,
       'cancel_request'
     )
-    future.add_done_callback( _ConsumeCancellationResponse )
+    future.add_done_callback(
+      partial(
+        _ConsumeCancellationResponse,
+        operation_id = operation_id
+      )
+    )
   except Exception:
-    _logger.exception( 'Unable to send request cancellation' )
+    _logger.exception(
+      'Unable to send cancellation request for operation %r',
+      operation_id
+    )
 
 
-def _ConsumeCancellationResponse( future: _ResponseFuture ) -> None:
+def _ConsumeCancellationResponse(
+    future: _ResponseFuture,
+    *,
+    operation_id: object
+) -> None:
   try:
-    _JsonFromFuture( future )
+    cancellation_was_effective: object = _JsonFromFuture( future )
+    _logger.debug(
+      'Received cancellation response for operation %r (effective: %s)',
+      operation_id,
+      cancellation_was_effective
+    )
   except Exception:
     # Cancellation is best-effort and its response is not user-facing. Consume
     # and close it, but do not report failures on the editor status line.
-    _logger.exception( 'Error while handling request cancellation response' )
+    _logger.exception(
+      'Error while handling cancellation response for operation %r',
+      operation_id
+    )
 
 
 def BuildRequestData( buffer_number = None ):

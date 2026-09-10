@@ -17,7 +17,11 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+import logging
 from typing import Protocol
+
+
+_logger = logging.getLogger( __name__ )
 
 
 # These JSON fields identify a cancellable YCM operation to ycmd. The
@@ -76,6 +80,12 @@ class RequestOperationManager:
     request_data[ YCM_OPERATION_ID ] = operation_id
     self._AddRetirementWatermark( request_data )
 
+    _logger.debug(
+      'Started request operation %d (retired through %d)',
+      operation_id,
+      self._retired_operation_id
+    )
+
     return RequestOperation( self, operation_id )
 
 
@@ -91,6 +101,10 @@ class RequestOperationManager:
         f'Operation { operation_id } has already been started' )
 
     operation.future = future
+    _logger.debug(
+      'Attached an HTTP request to operation %d',
+      operation_id
+    )
 
 
   def _FinishWithoutFuture( self, operation_id: int ) -> None:
@@ -101,13 +115,28 @@ class RequestOperationManager:
         f'Operation { operation_id } has already been started' )
 
     operation.finished_without_future = True
+    _logger.debug(
+      'Operation %d finished before HTTP request submission',
+      operation_id
+    )
 
 
   def _CancelOperation( self, operation_id: int ) -> None:
     self._RetireCompletedOperations()
 
     operation = self._operations.get( operation_id )
-    if operation is None or operation.cancellation_requested:
+    if operation is None:
+      _logger.debug(
+        'Ignored cancellation of inactive operation %d',
+        operation_id
+      )
+      return
+
+    if operation.cancellation_requested:
+      _logger.debug(
+        'Ignored duplicate cancellation of operation %d',
+        operation_id
+      )
       return
 
     operation.cancellation_requested = True
@@ -115,18 +144,31 @@ class RequestOperationManager:
       YCM_OPERATION_ID: operation_id,
     }
     self._AddRetirementWatermark( request_data )
+    _logger.debug(
+      'Requesting cancellation of operation %d (retired through %d)',
+      operation_id,
+      self._retired_operation_id
+    )
     self._send_cancellation( request_data )
 
 
   def _RetireCompletedOperations( self ) -> None:
+    previous_retired_operation_id: int = self._retired_operation_id
+
     while True:
       operation_id = self._retired_operation_id + 1
       operation = self._operations.get( operation_id )
       if operation is None or not operation.Done():
-        return
+        break
 
       del self._operations[ operation_id ]
       self._retired_operation_id = operation_id
+
+    if self._retired_operation_id != previous_retired_operation_id:
+      _logger.debug(
+        'Retired completed request operations through %d',
+        self._retired_operation_id
+      )
 
 
   def _AddRetirementWatermark(
@@ -158,6 +200,11 @@ class RequestOperation:
   ) -> None:
     self._manager = manager
     self._operation_id = operation_id
+
+
+  @property
+  def operation_id( self ) -> int:
+    return self._operation_id
 
 
   def AttachFuture( self, future: OperationFuture ) -> None:
