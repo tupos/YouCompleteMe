@@ -36,7 +36,8 @@ from ycm.client.base_request import ( BaseRequest,
                                       SendCancellationRequest )
 from ycm.client.request_operation import RequestOperationManager
 from ycm.client.completer_available_request import SendCompleterAvailableRequest
-from ycm.client.command_request import ( SendCommandRequest,
+from ycm.client.command_request import ( CommandRequest,
+                                         SendCommandRequest,
                                          SendCommandRequestAsync,
                                          GetCommandResponse,
                                          GetRawCommandResponse )
@@ -123,7 +124,11 @@ class YouCompleteMe:
     return self._current_hierarchy.SetRootNode( items, kind )
 
 
-  def UpdateCurrentHierarchy( self, handle : int, direction : str ):
+  def UpdateCurrentHierarchy(
+      self,
+      handle: int,
+      direction: str
+  ) -> tuple[ object, int ]:
     if not self._current_hierarchy.UpdateChangesRoot( handle, direction ):
       items = self._ResolveHierarchyItem( handle, direction )
       self._current_hierarchy.UpdateHierarchy( handle, items, direction )
@@ -141,7 +146,8 @@ class YouCompleteMe:
       items = GetRawCommandResponse(
         [ f'{ kind.title() }Hierarchy' ],
         silent = False,
-        location = location
+        location = location,
+        request_operation_manager = self._request_operation_manager
       )
       # [ 0 ] chooses the data for the 1st (and only) line.
       # [ 1 ] chooses only the handle
@@ -149,10 +155,15 @@ class YouCompleteMe:
       return self.UpdateCurrentHierarchy( handle, direction )
 
 
-  def _ResolveHierarchyItem( self, handle : int, direction : str ):
+  def _ResolveHierarchyItem(
+      self,
+      handle: int,
+      direction: str
+  ) -> object | None:
     return GetRawCommandResponse(
       self._current_hierarchy.ResolveArguments( handle, direction ),
-      silent = False
+      silent = False,
+      request_operation_manager = self._request_operation_manager
     )
 
 
@@ -184,8 +195,8 @@ class YouCompleteMe:
     self._latest_completion_request = None
     self._latest_signature_help_request = None
     self._signature_help_available_requests = SigHelpAvailableByFileType()
-    self._command_requests = {}
-    self._next_command_request_id = 0
+    self._command_requests: dict[ int, CommandRequest ] = {}
+    self._next_command_request_id: int = 0
     self._user_options = base.GetUserOptions( self._default_options )
     self._omnicomp = OmniCompleter( self._user_options )
     self._buffers = BufferDict(
@@ -477,12 +488,14 @@ class YouCompleteMe:
 
 
 
-  def SendCommandRequest( self,
-                          arguments,
-                          modifiers,
-                          has_range,
-                          start_line,
-                          end_line ):
+  def SendCommandRequest(
+      self,
+      arguments: list[ str ],
+      modifiers: str,
+      has_range: bool,
+      start_line: int,
+      end_line: int
+  ) -> object | None:
     final_arguments, extra_data = self._GetCommandRequestArguments(
       arguments,
       has_range,
@@ -493,10 +506,15 @@ class YouCompleteMe:
       modifiers,
       self._user_options[ 'goto_buffer_command' ],
       extra_data,
-      response_handler = self._HandleCommandResponse )
+      response_handler = self._HandleCommandResponse,
+      request_operation_manager = self._request_operation_manager
+    )
 
 
-  def GetCommandResponse( self, arguments ):
+  def GetCommandResponse(
+      self,
+      arguments: list[ str ]
+  ) -> str:
     final_arguments, extra_data = self._GetCommandRequestArguments(
       arguments,
       False,
@@ -505,13 +523,17 @@ class YouCompleteMe:
     return GetCommandResponse(
       final_arguments,
       extra_data,
-      response_handler = self._HandleCommandResponse )
+      response_handler = self._HandleCommandResponse,
+      request_operation_manager = self._request_operation_manager
+    )
 
 
-  def SendCommandRequestAsync( self,
-                               arguments,
-                               silent = True,
-                               location = None ):
+  def SendCommandRequestAsync(
+      self,
+      arguments: list[ str ],
+      silent: bool = True,
+      location: tuple[ str, int, int ] | None = None
+  ) -> int:
     final_arguments, extra_data = self._GetCommandRequestArguments(
       arguments,
       False,
@@ -525,16 +547,23 @@ class YouCompleteMe:
       extra_data,
       silent,
       location = location,
-      response_handler = self._HandleCommandResponse )
+      response_handler = self._HandleCommandResponse,
+      request_operation_manager = self._request_operation_manager
+    )
     return request_id
 
 
-  def GetCommandRequest( self, request_id ):
+  def GetCommandRequest(
+      self,
+      request_id: int
+  ) -> CommandRequest | None:
     return self._command_requests.get( request_id )
 
 
-  def FlushCommandRequest( self, request_id ):
-    self._command_requests.pop( request_id, None )
+  def FlushCommandRequest( self, request_id: int ) -> None:
+    request = self._command_requests.pop( request_id, None )
+    if request is not None:
+      request.Cancel()
 
 
   def GetDefinedSubcommands( self ):

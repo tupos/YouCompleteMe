@@ -20,10 +20,12 @@ from typing import Callable, TypeAlias
 from ycm.client.base_request import ( BaseRequest,
                                       BuildRequestData,
                                       BuildRequestDataForLocation )
+from ycm.client.request_operation import RequestOperationManager
 from ycm import vimsupport
 
 DEFAULT_BUFFER_COMMAND = 'same-buffer'
 CommandResponseHandler: TypeAlias = Callable[ [ object ], None ]
+CommandLocation: TypeAlias = tuple[ str, int, int ]
 
 
 def _EnsureBackwardsCompatibility( arguments ):
@@ -33,13 +35,17 @@ def _EnsureBackwardsCompatibility( arguments ):
 
 
 class CommandRequest( BaseRequest ):
-  def __init__( self,
-                arguments,
-                extra_data = None,
-                silent = False,
-                location = None,
-                response_handler: CommandResponseHandler | None = None ):
-    super( CommandRequest, self ).__init__()
+  def __init__(
+      self,
+      arguments: list[ str ],
+      extra_data: dict[ str, object ] | None = None,
+      silent: bool = False,
+      location: CommandLocation | None = None,
+      response_handler: CommandResponseHandler | None = None,
+      *,
+      request_operation_manager: RequestOperationManager
+  ) -> None:
+    super().__init__( request_operation_manager )
     self._arguments = _EnsureBackwardsCompatibility( arguments )
     self._command = arguments and arguments[ 0 ]
     self._extra_data = extra_data
@@ -52,7 +58,7 @@ class CommandRequest( BaseRequest ):
     self._response_handler: CommandResponseHandler | None = response_handler
 
 
-  def Start( self ):
+  def Start( self ) -> None:
     if self._location is not None:
       self._request_data = BuildRequestDataForLocation( *self._location )
     elif self._bufnr is not None:
@@ -65,7 +71,7 @@ class CommandRequest( BaseRequest ):
     self._request_data.update( {
       'command_arguments': self._arguments
     } )
-    self._response_future = self.PostDataToHandlerAsync(
+    self._response_future = self.PostCancellableDataToHandlerAsync(
       self._request_data,
       'run_completer_command' )
 
@@ -171,7 +177,7 @@ class CommandRequest( BaseRequest ):
                                  buffer_command )
 
 
-  def _HandleFixitResponse( self ):
+  def _HandleFixitResponse( self ) -> None:
     if not len( self._response[ 'fixits' ] ):
       vimsupport.PostVimMessage( 'No fixits found for current line',
                                  warning = False )
@@ -197,8 +203,12 @@ class CommandRequest( BaseRequest ):
         chosen_fixit = fixits[ fixit_index ]
         if chosen_fixit[ 'resolve' ]:
           self._request_data.update( { 'fixit': chosen_fixit } )
-          response = self.PostDataToHandler( self._request_data,
-                                             'resolve_fixit' )
+          response = self.HandleFuture(
+            self.PostCancellableDataToHandlerAsync(
+              self._request_data,
+              'resolve_fixit'
+            )
+          )
           if response is None:
             return
           fixits = response[ 'fixits' ]
@@ -225,33 +235,43 @@ class CommandRequest( BaseRequest ):
                                      modifiers )
 
 
-def SendCommandRequestAsync( arguments,
-                             extra_data = None,
-                             silent = True,
-                             location = None,
-                             response_handler:
-                             CommandResponseHandler | None = None ):
+def SendCommandRequestAsync(
+    arguments: list[ str ],
+    extra_data: dict[ str, object ] | None = None,
+    silent: bool = True,
+    location: CommandLocation | None = None,
+    response_handler: CommandResponseHandler | None = None,
+    *,
+    request_operation_manager: RequestOperationManager
+) -> CommandRequest:
   request = CommandRequest( arguments,
                             extra_data = extra_data,
                             silent = silent,
                             location = location,
-                            response_handler = response_handler )
+                            response_handler = response_handler,
+                            request_operation_manager =
+                              request_operation_manager )
   request.Start()
   # Don't block
   return request
 
 
-def SendCommandRequest( arguments,
-                        modifiers,
-                        buffer_command = DEFAULT_BUFFER_COMMAND,
-                        extra_data = None,
-                        skip_post_command_action = False,
-                        response_handler:
-                        CommandResponseHandler | None = None ):
+def SendCommandRequest(
+    arguments: list[ str ],
+    modifiers: str,
+    buffer_command: str = DEFAULT_BUFFER_COMMAND,
+    extra_data: dict[ str, object ] | None = None,
+    skip_post_command_action: bool = False,
+    response_handler: CommandResponseHandler | None = None,
+    *,
+    request_operation_manager: RequestOperationManager
+) -> object | None:
   request = SendCommandRequestAsync( arguments,
                                      extra_data = extra_data,
                                      silent = False,
-                                     response_handler = response_handler )
+                                     response_handler = response_handler,
+                                     request_operation_manager =
+                                       request_operation_manager )
   # Block here to get the response
   if not skip_post_command_action:
     request.RunPostCommandActionsIfNeeded( modifiers, buffer_command )
@@ -259,20 +279,33 @@ def SendCommandRequest( arguments,
 
 
 def GetCommandResponse(
-    arguments,
-    extra_data = None,
-    response_handler: CommandResponseHandler | None = None ):
+    arguments: list[ str ],
+    extra_data: dict[ str, object ] | None = None,
+    response_handler: CommandResponseHandler | None = None,
+    *,
+    request_operation_manager: RequestOperationManager
+) -> str:
   request = SendCommandRequestAsync( arguments,
                                      extra_data = extra_data,
                                      silent = True,
-                                     response_handler = response_handler )
+                                     response_handler = response_handler,
+                                     request_operation_manager =
+                                       request_operation_manager )
   # Block here to get the response
   return request.StringResponse()
 
 
-def GetRawCommandResponse( arguments, silent, location = None ):
+def GetRawCommandResponse(
+    arguments: list[ str ],
+    silent: bool,
+    location: CommandLocation | None = None,
+    *,
+    request_operation_manager: RequestOperationManager
+) -> object | None:
   request = SendCommandRequestAsync( arguments,
                                      extra_data = None,
                                      silent = silent,
-                                     location = location )
+                                     location = location,
+                                     request_operation_manager =
+                                       request_operation_manager )
   return request.Response()

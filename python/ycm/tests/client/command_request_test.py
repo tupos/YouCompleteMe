@@ -15,19 +15,43 @@
 # You should have received a copy of the GNU General Public License
 # along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 
+from concurrent.futures import Future
 from ycm.tests.test_utils import ExtendedMock, MockVimModule
 MockVimModule()
 
 import json
-from hamcrest import assert_that
+from hamcrest import assert_that, equal_to
 from unittest import TestCase
 from unittest.mock import patch, call, MagicMock
-from ycm.client.command_request import CommandRequest
+from ycm.client.base_request import BaseRequest
+from ycm.client.command_request import ( CommandRequest,
+                                         CommandResponseHandler )
+from ycm.client.request_operation import ( RequestOperationManager,
+                                           YCM_OPERATION_ID )
+
+
+def _IgnoreCancellation(
+    request_data: dict[ str, object ]
+) -> None:
+  pass
+
+
+def _CommandRequestForTest(
+    arguments: list[ str ],
+    response_handler: CommandResponseHandler | None = None
+) -> CommandRequest:
+  return CommandRequest(
+    arguments,
+    response_handler = response_handler,
+    request_operation_manager = RequestOperationManager(
+      _IgnoreCancellation
+    )
+  )
 
 
 def GoToTest( command, response ):
   with patch( 'ycm.vimsupport.JumpToLocation' ) as jump_to_location:
-    request = CommandRequest( [ command ] )
+    request = _CommandRequestForTest( [ command ] )
     request._response = response
     request.RunPostCommandActionsIfNeeded( 'rightbelow' )
     jump_to_location.assert_called_with(
@@ -44,7 +68,7 @@ def GoToListTest( command, response ):
   # made
   with patch( 'ycm.vimsupport.SetQuickFixList' ) as set_qf_list:
     with patch( 'ycm.vimsupport.OpenQuickFixList' ) as open_qf_list:
-      request = CommandRequest( [ command ] )
+      request = _CommandRequestForTest( [ command ] )
       request._response = response
       request.RunPostCommandActionsIfNeeded( 'tab' )
       assert_that( set_qf_list.called )
@@ -94,7 +118,7 @@ class GoToResponse_QuickFixTest( TestCase ):
   number."""
 
   def setUp( self ):
-    self._request = CommandRequest( [ 'GoToTest' ] )
+    self._request = _CommandRequestForTest( [ 'GoToTest' ] )
 
 
   def tearDown( self ):
@@ -183,8 +207,10 @@ class Response_Detection_Test( TestCase ):
       }
     }
     response_handler = MagicMock()
-    request = CommandRequest( [ 'StopServer' ],
-                              response_handler = response_handler )
+    request = _CommandRequestForTest(
+      [ 'StopServer' ],
+      response_handler = response_handler
+    )
     request._response_future = MagicMock()
 
     with patch.object( request, 'HandleFuture', return_value = response ):
@@ -196,7 +222,7 @@ class Response_Detection_Test( TestCase ):
   def test_BasicResponse( self ):
     def _BasicResponseTest( command, response ):
       with patch( 'vim.command' ) as vim_command:
-        request = CommandRequest( [ command ] )
+        request = _CommandRequestForTest( [ command ] )
         request._response = response
         request.RunPostCommandActionsIfNeeded( 'belowright' )
         vim_command.assert_called_with( f"echo '{ response }'" )
@@ -216,7 +242,7 @@ class Response_Detection_Test( TestCase ):
     def EmptyFixItTest( command ):
       with patch( 'ycm.vimsupport.ReplaceChunks' ) as replace_chunks:
         with patch( 'ycm.vimsupport.PostVimMessage' ) as post_vim_message:
-          request = CommandRequest( [ command ] )
+          request = _CommandRequestForTest( [ command ] )
           request._response = {
             'fixits': []
           }
@@ -239,7 +265,7 @@ class Response_Detection_Test( TestCase ):
         with patch( 'ycm.vimsupport.PostVimMessage' ) as post_vim_message:
           with patch( 'ycm.vimsupport.SelectFromList',
                       return_value = selection ):
-            request = CommandRequest( [ command ] )
+            request = _CommandRequestForTest( [ command ] )
             request._response = response
             request.RunPostCommandActionsIfNeeded( 'leftabove' )
 
@@ -271,13 +297,74 @@ class Response_Detection_Test( TestCase ):
         FixItTest( command, response, chunks, selection, silent )
 
 
+  def test_FixItResolutionUsesCancellableOperation( self ) -> None:
+    manager = RequestOperationManager( MagicMock() )
+    request = CommandRequest(
+      [ 'FixIt' ],
+      request_operation_manager = manager
+    )
+    unresolved_fixit: dict[ str, object ] = {
+      'text': 'Add include',
+      'resolve': True,
+      'chunks': [],
+    }
+    resolved_chunks: list[ dict[ str, object ] ] = [ {
+      'replacement_text': '#include <vector>',
+    } ]
+    request._request_data = {}
+    request._response = {
+      'fixits': [ unresolved_fixit ],
+    }
+    future: Future[ object ] = Future()
+
+    with patch.object(
+        BaseRequest,
+        'PostDataToHandlerAsync',
+        return_value = future
+    ) as post_request:
+      with patch.object(
+          request,
+          'HandleFuture',
+          return_value = {
+            'fixits': [ {
+              'chunks': resolved_chunks,
+            } ],
+          }
+      ):
+        with patch(
+            'ycm.vimsupport.SelectFromList',
+            return_value = 0
+        ):
+          with patch(
+              'ycm.vimsupport.ReplaceChunks'
+          ) as replace_chunks:
+            request.RunPostCommandActionsIfNeeded( 'leftabove' )
+
+    posted_request_data = post_request.call_args.args[ 0 ]
+    assert_that(
+      posted_request_data,
+      equal_to( {
+        'fixit': unresolved_fixit,
+        YCM_OPERATION_ID: 0,
+      } )
+    )
+    assert_that(
+      post_request.call_args.args[ 1 ],
+      equal_to( 'resolve_fixit' )
+    )
+    replace_chunks.assert_called_once_with(
+      resolved_chunks,
+      silent = False
+    )
+
+
   def test_Message_Response( self ):
     # Ensures we correctly recognise and handle responses with a message to show
     # to the user
 
     def MessageTest( command, message ):
       with patch( 'ycm.vimsupport.PostVimMessage' ) as post_vim_message:
-        request = CommandRequest( [ command ] )
+        request = _CommandRequestForTest( [ command ] )
         request._response = { 'message': message }
         request.RunPostCommandActionsIfNeeded( 'rightbelow' )
         post_vim_message.assert_called_with( message, warning = False )
@@ -297,7 +384,7 @@ class Response_Detection_Test( TestCase ):
 
     def DetailedInfoTest( command, info ):
       with patch( 'ycm.vimsupport.WriteToPreviewWindow' ) as write_to_preview:
-        request = CommandRequest( [ command ] )
+        request = _CommandRequestForTest( [ command ] )
         request._response = { 'detailed_info': info }
         request.RunPostCommandActionsIfNeeded( 'topleft' )
         write_to_preview.assert_called_with( info, 'topleft' )

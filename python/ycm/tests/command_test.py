@@ -15,14 +15,18 @@
 # You should have received a copy of the GNU General Public License
 # along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 
+from concurrent.futures import Future
 from ycm.tests.test_utils import MockVimModule, MockVimBuffers, VimBuffer
 MockVimModule()
 
-from hamcrest import assert_that, contains_exactly, has_entries
+from hamcrest import assert_that, contains_exactly, equal_to, has_entries
 from unittest.mock import patch
 from unittest import TestCase
 
 from ycm.tests import YouCompleteMeInstance
+from ycm.client.base_request import BaseRequest
+from ycm.client.request_operation import YCM_OPERATION_ID
+from ycm.youcompleteme import YouCompleteMe
 
 
 class CommandTest( TestCase ):
@@ -44,6 +48,54 @@ class CommandTest( TestCase ):
     } )
 
     assert_that( ycm.GetWorkDoneProgress(), contains_exactly() )
+
+
+  @YouCompleteMeInstance()
+  def test_FlushCommandRequest_CancelsPendingRequest(
+      self,
+      ycm: YouCompleteMe
+  ) -> None:
+    current_buffer = VimBuffer( 'buffer' )
+    command_future: Future[ object ] = Future()
+    cancellation_future: Future[ object ] = Future()
+
+    with MockVimBuffers( [ current_buffer ], [ current_buffer ] ):
+      with patch.object(
+          BaseRequest,
+          'PostDataToHandlerAsync',
+          side_effect = [
+            command_future,
+            cancellation_future,
+          ]
+      ) as post_request:
+        request_id = ycm.SendCommandRequestAsync( [ 'GoTo' ] )
+        ycm.FlushCommandRequest( request_id )
+
+    posted_requests = post_request.call_args_list
+    assert_that(
+      [
+        request_call.args[ 1 ]
+        for request_call in posted_requests
+      ],
+      contains_exactly(
+        'run_completer_command',
+        'cancel_request'
+      )
+    )
+    assert_that(
+      posted_requests[ 0 ].args[ 0 ],
+      has_entries( {
+        'command_arguments': contains_exactly( 'GoTo' ),
+        YCM_OPERATION_ID: 0,
+      } )
+    )
+    assert_that(
+      posted_requests[ 1 ].args[ 0 ],
+      equal_to( {
+        YCM_OPERATION_ID: 0,
+      } )
+    )
+    self.assertIsNone( ycm.GetCommandRequest( request_id ) )
 
 
   @YouCompleteMeInstance( { 'g:ycm_extra_conf_vim_data': [ 'tempname()' ] } )
@@ -70,6 +122,10 @@ class CommandTest( TestCase ):
             } ),
           )
         )
+        self.assertIs(
+          send_request.call_args.kwargs[ 'request_operation_manager' ],
+          ycm._request_operation_manager
+        )
 
 
   @YouCompleteMeInstance( {
@@ -93,6 +149,10 @@ class CommandTest( TestCase ):
               } )
             } ),
           )
+        )
+        self.assertIs(
+          send_request.call_args.kwargs[ 'request_operation_manager' ],
+          ycm._request_operation_manager
         )
 
 
@@ -124,6 +184,7 @@ class CommandTest( TestCase ):
             }
           },
           response_handler = ycm._HandleCommandResponse,
+          request_operation_manager = ycm._request_operation_manager,
         )
 
 
@@ -158,6 +219,7 @@ class CommandTest( TestCase ):
             }
           },
           response_handler = ycm._HandleCommandResponse,
+          request_operation_manager = ycm._request_operation_manager,
         )
 
 
@@ -181,9 +243,15 @@ class CommandTest( TestCase ):
       with patch( 'ycm.youcompleteme.SendCommandRequest' ) as send_request:
         ycm.SendCommandRequest( [ 'ft=python', 'GoTo' ], '', False, 1, 1 )
         send_request.assert_called_once_with(
-          *expected_args, response_handler = ycm._HandleCommandResponse )
+          *expected_args,
+          response_handler = ycm._HandleCommandResponse,
+          request_operation_manager = ycm._request_operation_manager
+        )
 
       with patch( 'ycm.youcompleteme.SendCommandRequest' ) as send_request:
         ycm.SendCommandRequest( [ 'GoTo', 'ft=python' ], '', False, 1, 1 )
         send_request.assert_called_once_with(
-          *expected_args, response_handler = ycm._HandleCommandResponse )
+          *expected_args,
+          response_handler = ycm._HandleCommandResponse,
+          request_operation_manager = ycm._request_operation_manager
+        )
