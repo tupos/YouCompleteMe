@@ -38,13 +38,12 @@ class ScrollingBufferRange( object ):
 
 
   def Request( self, force: bool = False ) -> bool:
-    if self._request and not self.Ready():
-      return True
+    current_tick = vimsupport.GetBufferChangedTick( self._bufnr )
 
     # Check to see if the buffer ranges would actually change anything visible.
     # This avoids a round-trip for every single line scroll event
     if ( not force and
-         self._tick == vimsupport.GetBufferChangedTick( self._bufnr ) and
+         self._tick == current_tick and
          vimsupport.VisibleRangeOfBufferOverlaps(
            self._bufnr,
            self._last_requested_range ) ):
@@ -57,21 +56,32 @@ class ScrollingBufferRange( object ):
     #  - remove the expansion param
     #  - look up the actual visible range, then call this function
     #  - if not overlapping, do the factor expansion and request
-    self._last_requested_range = vimsupport.RangeVisibleInBuffer( self._bufnr )
+    requested_range = vimsupport.RangeVisibleInBuffer( self._bufnr )
     # If this is false, either the self._bufnr is not a valid buffer number or
     # the buffer is not visible in any window.
     # Since this is called asynchronously, a user may bwipeout a buffer with
     # self._bufnr number between polls.
-    if self._last_requested_range is None:
+    if requested_range is None:
+      self.Cancel()
       return False
 
-    self._tick = vimsupport.GetBufferChangedTick( self._bufnr )
+    self.Cancel()
+    self._last_requested_range = requested_range
+    self._tick = current_tick
 
     # We'll never use the last response again, so clear it
     self._latest_response = None
     self._request = self._NewRequest( self._last_requested_range )
     self._request.Start()
     return True
+
+
+  def Cancel( self ) -> None:
+    if self._request is None:
+      return
+
+    self._request.Reset()
+    self._request = None
 
 
   def Update( self ):
