@@ -15,18 +15,27 @@
 # You should have received a copy of the GNU General Public License
 # along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
+from collections.abc import Callable
 import logging
 import json
+from typing import Any, Protocol
 import vim
 from base64 import b64decode, b64encode
 from hmac import compare_digest
 from urllib.parse import urljoin, urlparse, urlencode
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
+
 from ycm import vimsupport
+from ycm.client.request_operation import ( OperationFuture,
+                                           RequestOperation,
+                                           RequestOperationManager )
 from ycmd.utils import ToBytes, GetCurrentDirectory, ToUnicode
 from ycmd.hmac_utils import CreateRequestHmac, CreateHmac
 from ycmd.responses import ServerError, UnknownExtraConf
+
 
 HTTP_SERVER_ERROR = 500
 
@@ -38,10 +47,27 @@ _HMAC_HEADER = 'x-ycm-hmac'
 _logger = logging.getLogger( __name__ )
 
 
+class _ResponseFuture( OperationFuture, Protocol ):
+  def result( self ) -> Any:
+    ...
+
+
+  def add_done_callback(
+      self,
+      callback: Callable[ [ _ResponseFuture ], None ]
+  ) -> None:
+    ...
+
+
 class BaseRequest:
 
-  def __init__( self ):
+  def __init__(
+      self,
+      request_operation_manager: RequestOperationManager | None = None
+  ) -> None:
     self._should_resend = False
+    self._request_operation_manager = request_operation_manager
+    self._request_operation: RequestOperation | None = None
 
 
   def Start( self ):
@@ -137,11 +163,51 @@ class BaseRequest:
         truncate_message )
 
 
+  def PostCancellableDataToHandlerAsync(
+      self,
+      data: dict[ str, object ],
+      handler: str,
+      timeout: float = _READ_TIMEOUT_SEC
+  ) -> _ResponseFuture:
+    if self._request_operation_manager is None:
+      raise RuntimeError(
+        'A request operation manager is required for cancellable requests' )
+
+    self.Cancel()
+    operation = self._request_operation_manager.StartOperation( data )
+    self._request_operation = operation
+
+    try:
+      future = BaseRequest.PostDataToHandlerAsync(
+        data,
+        handler,
+        timeout
+      )
+    except Exception:
+      operation.FinishWithoutFuture()
+      self._request_operation = None
+      raise
+
+    operation.AttachFuture( future )
+    return future
+
+
+  def Cancel( self ) -> None:
+    operation = self._request_operation
+    self._request_operation = None
+    if operation is not None:
+      operation.Cancel()
+
+
   # This returns a future! Use HandleFuture to get the value.
   # |timeout| is num seconds to tolerate no response from server before giving
   # up; see Requests docs for details (we just pass the param along).
   @staticmethod
-  def PostDataToHandlerAsync( data, handler, timeout = _READ_TIMEOUT_SEC ):
+  def PostDataToHandlerAsync(
+      data: dict[ str, object ],
+      handler: str,
+      timeout: float = _READ_TIMEOUT_SEC
+  ) -> _ResponseFuture:
     return BaseRequest._TalkToHandlerAsync( data, handler, 'POST', timeout )
 
 
@@ -217,6 +283,29 @@ class BaseRequest:
   hmac_secret = ''
 
 
+def SendCancellationRequest(
+    request_data: dict[ str, object ]
+) -> None:
+  """Send a best-effort cancellation request without blocking the editor."""
+  try:
+    future = BaseRequest.PostDataToHandlerAsync(
+      request_data,
+      'cancel_request'
+    )
+    future.add_done_callback( _ConsumeCancellationResponse )
+  except Exception:
+    _logger.exception( 'Unable to send request cancellation' )
+
+
+def _ConsumeCancellationResponse( future: _ResponseFuture ) -> None:
+  try:
+    _JsonFromFuture( future )
+  except Exception:
+    # Cancellation is best-effort and its response is not user-facing. Consume
+    # and close it, but do not report failures on the editor status line.
+    _logger.exception( 'Error while handling request cancellation response' )
+
+
 def BuildRequestData( buffer_number = None ):
   """Build request for the current buffer or the buffer with number
   |buffer_number| if specified."""
@@ -269,25 +358,31 @@ def BuildRequestDataForLocation( file : str, line : int, column : int ):
   }
 
 
-def _JsonFromFuture( future ):
+def _JsonFromFuture( future: _ResponseFuture ) -> object:
   try:
     response = future.result()
-    response_text = response.read()
-    _ValidateResponseObject( response, response_text )
-    response.close()
+  except HTTPError as error_response:
+    try:
+      if error_response.code != HTTP_SERVER_ERROR:
+        raise
+
+      response_text = error_response.read()
+    finally:
+      error_response.close()
 
     if response_text:
-      return json.loads( response_text )
+      raise MakeServerException( json.loads( response_text ) )
     return None
-  except HTTPError as response:
-    if response.code == HTTP_SERVER_ERROR:
-      response_text = response.read()
-      response.close()
-      if response_text:
-        raise MakeServerException( json.loads( response_text ) )
-      else:
-        return None
-    raise
+
+  try:
+    response_text = response.read()
+    _ValidateResponseObject( response, response_text )
+  finally:
+    response.close()
+
+  if response_text:
+    return json.loads( response_text )
+  return None
 
 
 def _LoadExtraConfFile( filepath ):
