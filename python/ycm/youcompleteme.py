@@ -416,7 +416,13 @@ class YouCompleteMe:
 
       self._AddExtraConfDataIfNeeded( request_data )
 
-      self._latest_signature_help_request = SignatureHelpRequest( request_data )
+      if self._latest_signature_help_request is not None:
+        self._latest_signature_help_request.Reset()
+
+      self._latest_signature_help_request = SignatureHelpRequest(
+        request_data,
+        self._request_operation_manager
+      )
       self._latest_signature_help_request.Start()
       return True
 
