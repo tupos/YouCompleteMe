@@ -53,6 +53,7 @@ Contents
     - [General Semantic Completion](#general-semantic-completion)
     - [Signature Help](#signature-help)
     - [Semantic Highlighting](#semantic-highlighting)
+    - [Document Highlights](#document-highlights)
     - [Inlay Hints](#inlay-hints)
     - [C-family Semantic Completion](#c-family-semantic-completion)
     - [Java Semantic Completion](#java-semantic-completion)
@@ -997,6 +998,59 @@ for tokenType in keys( MY_YCM_HIGHLIGHT_GROUP )
   endif
 endfor
 ```
+
+### Document highlights
+
+When supported by the semantic completer, YCM highlights occurrences related
+to the item under the cursor. For language-server completers, the highlighted
+ranges are provided by the
+[LSP document highlight request][lsp-document-highlights].
+
+Document highlights are allowed to be more general than exact symbol
+references. For example, clangd highlights related control-flow keywords:
+placing the cursor on a `case` label can highlight its enclosing `switch`,
+associated labels, and exits such as `break` and `return`.
+
+YCM requests document highlights when the cursor remains stationary in Normal
+mode long enough to trigger `CursorHold`. The delay is controlled by Vim's
+`updatetime` option. Moving the cursor, changing the buffer contents, entering
+Insert mode, or switching buffers clears the highlights and cancels any
+outstanding request.
+
+Document highlights are enabled by default. To disable them globally, add this
+to your vimrc:
+
+```viml
+let g:ycm_enable_document_highlights = 0
+```
+
+The setting can be overridden for a specific buffer:
+
+```viml
+let b:ycm_enable_document_highlights = 0
+```
+
+#### Customising the highlight groups
+
+YCM uses the following highlight groups:
+
+* `YcmDocumentHighlightText` for textual or otherwise unclassified
+  occurrences.
+* `YcmDocumentHighlightRead` for read accesses.
+* `YcmDocumentHighlightWrite` for write accesses.
+
+By default, `YcmDocumentHighlightText` links to `Visual`, while the read and
+write groups link to `YcmDocumentHighlightText`. Define the groups in your
+vimrc to customise their appearance. For example:
+
+```viml
+highlight! link YcmDocumentHighlightText CursorLine
+highlight! link YcmDocumentHighlightRead Search
+highlight! link YcmDocumentHighlightWrite IncSearch
+```
+
+YCM renders these groups using text properties in Vim and extmarks in Neovim.
+The same highlight-group names are used in both editors.
 
 ## Inlay hints
 
@@ -4069,6 +4123,7 @@ Please note: The YCM maintainers do not specifically endorse nor necessarily hav
 [lsp-examples]: https://github.com/ycm-core/lsp-examples
 [language_server-configuration]: https://github.com/ycm-core/ycmd#language_server-configuration
 [lsp-semantic-tokens]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens
+[lsp-document-highlights]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_documentHighlight
 [diagnostic-echo-virtual-text1]: https://user-images.githubusercontent.com/10584846/185707973-39703699-0263-47d3-82ac-639d52259bea.png
 [diagnostic-echo-virtual-text2]: https://user-images.githubusercontent.com/10584846/185707993-14ff5fd7-c082-4e5a-b825-f1364e619b6a.png
 [jedi-refactor-doc]: https://jedi.readthedocs.io/en/latest/docs/api.html#jedi.Script.extract_variable
