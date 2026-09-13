@@ -194,6 +194,9 @@ let g:ycm_disable_for_files_larger_than_kb =
 let g:ycm_auto_hover =
       \ get( g:, 'ycm_auto_hover', 'CursorHold' )
 
+let g:ycm_enable_document_highlights =
+      \ get( g:, 'ycm_enable_document_highlights', 1 )
+
 let g:ycm_update_diagnostics_in_insert_mode =
       \ get( g:, 'ycm_update_diagnostics_in_insert_mode', 1 )
 

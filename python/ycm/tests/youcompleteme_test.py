@@ -225,6 +225,29 @@ class YouCompleteMeTest( TestCase ):
     assert_that( 'ycm_core', is_not( is_in( sys.modules ) ) )
 
 
+  @YouCompleteMeInstance()
+  def test_YouCompleteMe_DocumentHighlights(
+      self,
+      ycm: YouCompleteMe
+  ) -> None:
+    document_highlights = MagicMock()
+    ycm._document_highlights = document_highlights
+    document_highlights.Initialise.return_value = True
+    document_highlights.Ready.return_value = True
+
+    assert_that( ycm.InitialiseDocumentHighlights(), equal_to( True ) )
+    ycm.RequestDocumentHighlights()
+    assert_that( ycm.DocumentHighlightsReady(), equal_to( True ) )
+    ycm.UpdateDocumentHighlights()
+    ycm.ClearDocumentHighlights()
+
+    document_highlights.Initialise.assert_called_once_with()
+    document_highlights.Request.assert_called_once_with()
+    document_highlights.Ready.assert_called_once_with()
+    document_highlights.Update.assert_called_once_with()
+    document_highlights.Clear.assert_called_once_with()
+
+
   @patch( 'ycm.vimsupport.PostVimMessage' )
   def test_YouCompleteMe_InvalidPythonInterpreterPath( self, post_vim_message ):
     with UserOptions( {

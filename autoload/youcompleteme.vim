@@ -76,6 +76,10 @@ let s:pollers = {
       \     'wait_milliseconds': 100,
       \     'requests': {},
       \   },
+      \   'document_highlights': {
+      \     'id': -1,
+      \     'wait_milliseconds': 100,
+      \   },
       \   'semantic_highlighting': {
       \     'id': -1,
       \     'wait_milliseconds': 100,
@@ -105,6 +109,7 @@ let s:work_done_progress_frames =
 let s:force_preview_popup = 0
 let s:force_preview = 0
 let s:enable_semantic_highlighting = 0
+let s:enable_document_highlights = 0
 
 let s:RESOLVE_NONE = 0
 let s:RESOLVE_UP_FRONT = 1
@@ -262,6 +267,8 @@ function! youcompleteme#Enable()
   let s:enable_semantic_highlighting = py3eval(
         \ 'ycm_semantic_highlighting.Initialise()' ) ? 1 : 0
   let s:enable_inlay_hints = py3eval( 'ycm_inlay_hints.Initialise()' ) ? 1 : 0
+  let s:enable_document_highlights =
+        \ py3eval( 'ycm_state.InitialiseDocumentHighlights()' ) ? 1 : 0
 
   call youcompleteme#EnableCursorMovedAutocommands()
   augroup youcompleteme
@@ -306,6 +313,7 @@ function! youcompleteme#EnableCursorMovedAutocommands()
   augroup ycmcompletemecursormove
     autocmd!
     autocmd CursorMoved * call s:OnCursorMovedNormalMode()
+    autocmd CursorHold * call s:RequestDocumentHighlights()
     autocmd CursorMovedI * let s:current_cursor_position = getpos( '.' )
     autocmd InsertEnter * call s:OnInsertEnter()
     autocmd TextChanged * call s:OnTextChangedNormalMode()
@@ -883,6 +891,8 @@ endfunction
 
 
 function! s:OnBufferEnter()
+  call s:ClearDocumentHighlights()
+
   call s:StartMessagePoll()
   if !s:VisitedBufferRequiresReparse()
     return
@@ -955,6 +965,57 @@ function! s:OnFileReadyToParse( ... )
 
   endif
 endfunction
+
+
+function! s:ShouldUseDocumentHighlightsNow( bufnr ) abort
+  return s:enable_document_highlights &&
+        \ getbufvar(
+        \   a:bufnr,
+        \   'ycm_enable_document_highlights',
+        \   get( g:, 'ycm_enable_document_highlights', 1 ) )
+endfunction
+
+
+function! s:RequestDocumentHighlights() abort
+  if !s:AllowedToCompleteInCurrentBuffer() ||
+        \ !s:ShouldUseDocumentHighlightsNow( bufnr() ) ||
+        \ !py3eval( 'ycm_state.IsServerReady()' )
+    call s:ClearDocumentHighlights()
+    return
+  endif
+
+  call s:StopPoller( s:pollers.document_highlights )
+  py3 ycm_state.RequestDocumentHighlights()
+  let s:pollers.document_highlights.id = timer_start(
+        \ s:pollers.document_highlights.wait_milliseconds,
+        \ function( 's:PollDocumentHighlights' ) )
+endfunction
+
+
+function! s:PollDocumentHighlights( timer_id ) abort
+  if a:timer_id != s:pollers.document_highlights.id
+    return
+  endif
+
+  if !py3eval( 'ycm_state.DocumentHighlightsReady()' )
+    let s:pollers.document_highlights.id = timer_start(
+          \ s:pollers.document_highlights.wait_milliseconds,
+          \ function( 's:PollDocumentHighlights' ) )
+    return
+  endif
+
+  let s:pollers.document_highlights.id = -1
+  py3 ycm_state.UpdateDocumentHighlights()
+endfunction
+
+
+function! s:ClearDocumentHighlights() abort
+  call s:StopPoller( s:pollers.document_highlights )
+  if s:enable_document_highlights
+    py3 ycm_state.ClearDocumentHighlights()
+  endif
+endfunction
+
 
 function s:ShouldUseSemanticHighlightingNow( bufnr )
   return s:enable_semantic_highlighting &&
@@ -1090,6 +1151,8 @@ endfunction
 
 
 function! s:OnCursorMovedNormalMode()
+  call s:ClearDocumentHighlights()
+
   if !s:AllowedToCompleteInCurrentBuffer()
     return
   endif
@@ -1111,6 +1174,7 @@ endfunction
 
 
 function! s:OnTextChangedNormalMode()
+  call s:ClearDocumentHighlights()
   if !s:AllowedToCompleteInCurrentBuffer()
     return
   endif
@@ -1166,6 +1230,7 @@ endfunction
 
 
 function! s:OnInsertEnter() abort
+  call s:ClearDocumentHighlights()
   let s:current_cursor_position = getpos( '.' )
   py3 ycm_state.OnInsertEnter()
   if s:ShouldUseInlayHintsNow( bufnr() ) &&
@@ -1523,9 +1588,12 @@ endfunction
 
 
 function! s:RestartServer()
+  call s:ClearDocumentHighlights()
   call s:SetUpOptions()
 
   py3 ycm_state.RestartServer()
+  let s:enable_document_highlights =
+        \ py3eval( 'ycm_state.InitialiseDocumentHighlights()' ) ? 1 : 0
   call s:UpdateWorkDoneProgress()
 
   call s:StopPoller( s:pollers.receive_messages )

@@ -51,6 +51,9 @@ from ycm.client.omni_completion_request import OmniCompletionRequest
 from ycm.client.event_notification import SendEventNotificationAsync
 from ycm.client.shutdown_request import SendShutdownRequest
 from ycm.client.messages_request import MessagesPoll
+from ycm.document_highlights import DocumentHighlights
+from ycm.document_highlights_renderer import (
+  CreateDocumentHighlightsRenderer )
 from ycm.semantic_highlighting_renderer import SemanticHighlightingSupported
 from ycm.virtual_text import VirtualTextSupported
 from ycm.work_done_progress import WorkDoneProgressState
@@ -181,7 +184,7 @@ class YouCompleteMe:
         self._user_options[ 'goto_buffer_command' ] )
 
 
-  def _SetUpServer( self ):
+  def _SetUpServer( self ) -> None:
     self._available_completers = {}
     self._user_notified_about_crash = False
     self._filetypes_with_keywords_loaded = set()
@@ -202,6 +205,10 @@ class YouCompleteMe:
     self._buffers = BufferDict(
       self._user_options,
       self._request_operation_manager
+    )
+    self._document_highlights: DocumentHighlights = DocumentHighlights(
+      self._request_operation_manager,
+      CreateDocumentHighlightsRenderer()
     )
 
     self._SetLogLevel()
@@ -733,6 +740,26 @@ class YouCompleteMe:
          ( async_diags or not self.CurrentBuffer().ParseRequestPending() ) ):
       self.CurrentBuffer().RefreshDiagnosticsUI()
     SendEventNotificationAsync( 'InsertLeave' )
+
+
+  def InitialiseDocumentHighlights( self ) -> bool:
+    return self._document_highlights.Initialise()
+
+
+  def RequestDocumentHighlights( self ) -> None:
+    self._document_highlights.Request()
+
+
+  def DocumentHighlightsReady( self ) -> bool:
+    return self._document_highlights.Ready()
+
+
+  def UpdateDocumentHighlights( self ) -> None:
+    self._document_highlights.Update()
+
+
+  def ClearDocumentHighlights( self ) -> None:
+    self._document_highlights.Clear()
 
 
   def OnCursorMoved( self ):
