@@ -117,7 +117,7 @@ class DocumentHighlightsTest( TestCase ):
 
   @patch(
     'ycm.document_highlights.vimsupport.CurrentLineAndColumn',
-    return_value = ( 2, 3 )
+    side_effect = [ ( 2, 3 ), ( 2, 4 ) ]
   )
   @patch(
     'ycm.document_highlights.vimsupport.GetBufferChangedTick',
@@ -161,6 +161,60 @@ class DocumentHighlightsTest( TestCase ):
     assert_that( highlights.Ready(), equal_to( False ) )
     highlights.Update()
     assert_that( renderer.rendered, empty() )
+
+
+  @patch(
+    'ycm.document_highlights.vimsupport.CurrentLineAndColumn',
+    return_value = ( 2, 3 )
+  )
+  @patch(
+    'ycm.document_highlights.vimsupport.GetBufferChangedTick',
+    return_value = 7
+  )
+  @patch(
+    'ycm.document_highlights.vimsupport.GetCurrentBufferNumber',
+    return_value = 4
+  )
+  @patch(
+    'ycm.document_highlights.BuildRequestData',
+    return_value = {}
+  )
+  def test_RequestDoesNotRepeatWorkForCurrentSnapshot(
+      self,
+      build_request_data: object,
+      get_current_buffer_number: object,
+      get_buffer_changed_tick: object,
+      current_line_and_column: object
+  ) -> None:
+    renderer = _RecordingRenderer()
+    highlights = _DocumentHighlightsForTest( renderer )
+
+    highlights.Request()
+    request = highlights.requests[ 0 ]
+    highlights.Request()
+
+    assert_that( len( highlights.requests ), equal_to( 1 ) )
+    assert_that( request.started, equal_to( True ) )
+    assert_that( request.reset, equal_to( False ) )
+
+    response: list[ DocumentHighlight ] = [ {
+      'kind': 'Text',
+      'range': {
+        'start': { 'line_num': 2, 'column_num': 1 },
+        'end': { 'line_num': 2, 'column_num': 5 },
+      },
+    } ]
+    request.response = response
+    request.done = True
+    highlights.Update()
+    highlights.Request()
+
+    assert_that( len( highlights.requests ), equal_to( 1 ) )
+    assert_that(
+      renderer.rendered,
+      equal_to( [ ( 4, response ) ] )
+    )
+    assert_that( renderer.cleared_buffers, empty() )
 
 
   @patch(

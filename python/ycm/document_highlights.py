@@ -78,7 +78,7 @@ class DocumentHighlights:
     self._renderer = renderer
     self._request: DocumentHighlightsRequestProtocol | None = None
     self._snapshot: _RequestSnapshot | None = None
-    self._rendered_buffer_number: int | None = None
+    self._rendered_snapshot: _RequestSnapshot | None = None
 
 
   def Initialise( self ) -> bool:
@@ -86,15 +86,15 @@ class DocumentHighlights:
 
 
   def Request( self ) -> None:
+    current_snapshot: _RequestSnapshot = self._CurrentSnapshot()
+    if ( current_snapshot == self._snapshot or
+         current_snapshot == self._rendered_snapshot ):
+      return
+
     self._CancelRequest()
     self._ClearRenderedHighlights()
 
-    buffer_number: int = vimsupport.GetCurrentBufferNumber()
-    self._snapshot = _RequestSnapshot(
-      buffer_number,
-      vimsupport.GetBufferChangedTick( buffer_number ),
-      vimsupport.CurrentLineAndColumn()
-    )
+    self._snapshot = current_snapshot
     request_data: dict[ str, object ] = BuildRequestData()
     self._request = self._NewRequest( request_data )
     self._request.Start()
@@ -113,14 +113,18 @@ class DocumentHighlights:
 
     highlights: list[ DocumentHighlight ] = self._request.Response()
     self._request = None
-    snapshot = self._snapshot
+    request_snapshot: _RequestSnapshot | None = self._snapshot
     self._snapshot = None
 
-    if snapshot is None or not self._SnapshotIsCurrent( snapshot ):
+    if ( request_snapshot is None or
+         not self._SnapshotIsCurrent( request_snapshot ) ):
       return
 
-    self._renderer.Render( snapshot.buffer_number, highlights )
-    self._rendered_buffer_number = snapshot.buffer_number
+    self._renderer.Render(
+      request_snapshot.buffer_number,
+      highlights
+    )
+    self._rendered_snapshot = request_snapshot
 
 
   def Clear( self ) -> None:
@@ -136,21 +140,24 @@ class DocumentHighlights:
 
 
   def _ClearRenderedHighlights( self ) -> None:
-    if self._rendered_buffer_number is None:
+    if self._rendered_snapshot is None:
       return
 
-    self._renderer.Clear( self._rendered_buffer_number )
-    self._rendered_buffer_number = None
+    self._renderer.Clear( self._rendered_snapshot.buffer_number )
+    self._rendered_snapshot = None
+
+
+  def _CurrentSnapshot( self ) -> _RequestSnapshot:
+    buffer_number: int = vimsupport.GetCurrentBufferNumber()
+    return _RequestSnapshot(
+      buffer_number,
+      vimsupport.GetBufferChangedTick( buffer_number ),
+      vimsupport.CurrentLineAndColumn()
+    )
 
 
   def _SnapshotIsCurrent( self, snapshot: _RequestSnapshot ) -> bool:
-    return (
-      snapshot.buffer_number == vimsupport.GetCurrentBufferNumber() and
-      snapshot.changed_tick == vimsupport.GetBufferChangedTick(
-        snapshot.buffer_number
-      ) and
-      snapshot.cursor_position == vimsupport.CurrentLineAndColumn()
-    )
+    return snapshot == self._CurrentSnapshot()
 
 
   def _NewRequest(

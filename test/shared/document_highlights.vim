@@ -234,7 +234,8 @@ function! Test_DocumentHighlights_PreservesCustomHighlight() abort
 endfunction
 
 
-function! Test_DocumentHighlights_CursorHoldRequestsAndCursorMovedClears()
+function!
+      \ Test_DocumentHighlights_RepeatedCursorHoldPreservesAndCursorMovedClears()
   call youcompleteme#test#setup#OpenFile(
         \ '/test/testdata/cpp/document_highlights.cpp',
         \ {} )
@@ -255,13 +256,23 @@ function! Test_DocumentHighlights_CursorHoldRequestsAndCursorMovedClears()
         \   [ 5, 10, 5 ],
         \ ],
         \ map(
-        \   highlights,
+        \   copy( highlights ),
         \   { _, highlight ->
         \     [
         \       highlight.line,
         \       highlight.column,
         \       highlight.length,
         \     ] } ) )
+
+  doautocmd CursorHold
+  call assert_equal(
+        \ highlights,
+        \ YcmTest_GetRenderedDocumentHighlights( bufnr() ) )
+  call WaitForAssert( { ->
+        \ assert_equal(
+        \   -1,
+        \   youcompleteme#Test_GetPollers().document_highlights.id ) },
+        \ 10000 )
 
   call cursor( 1, 1 )
   doautocmd CursorMoved
