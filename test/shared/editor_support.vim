@@ -18,6 +18,7 @@ endfunction
 function! Test_EditorSupport_KnownFeaturesReturnSupportStatus() abort
   let features = [
         \ 'completion_info_popup',
+        \ 'document_highlights',
         \ 'finder',
         \ 'hierarchy',
         \ 'popup_windows',

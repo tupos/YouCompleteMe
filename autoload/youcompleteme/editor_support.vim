@@ -22,6 +22,7 @@ let s:minimum_neovim_version = '0.5'
 " Feature versions belong here rather than in their implementations.
 let s:minimum_neovim_feature_versions = {
       \ 'completion_info_popup': '0.10',
+      \ 'document_highlights': '0.5',
       \ 'finder': '0.9',
       \ 'hierarchy': '0.9',
       \ 'popup_windows': '0.5',
