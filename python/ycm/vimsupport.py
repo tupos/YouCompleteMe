@@ -156,6 +156,10 @@ def GetCurrentBufferFilepath():
   return GetBufferFilepath( vim.current.buffer )
 
 
+def BufferExists( buffer_number: int ) -> bool:
+  return GetBoolValue( f'bufexists( { buffer_number } )' )
+
+
 def BufferIsVisible( buffer_number ):
   if buffer_number < 0:
     return False

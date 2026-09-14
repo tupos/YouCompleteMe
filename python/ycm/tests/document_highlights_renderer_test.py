@@ -84,11 +84,16 @@ class DocumentHighlightsRendererTest( TestCase ):
     'ycm.document_highlights_renderer.vimsupport.AddTextPropertyForRange'
   )
   @patch(
+    'ycm.document_highlights_renderer.vimsupport.BufferExists',
+    return_value = True
+  )
+  @patch(
     'ycm.document_highlights_renderer.vimsupport.ClearTextProperties'
   )
   def test_VimRenderMapsKindsAndClearsOnlyDocumentHighlights(
       self,
       clear_text_properties: object,
+      buffer_exists: object,
       add_text_property_for_range: object
   ) -> None:
     renderer = (
@@ -104,6 +109,7 @@ class DocumentHighlightsRendererTest( TestCase ):
       ]
     )
 
+    buffer_exists.assert_called_once_with( 4 )
     clear_text_properties.assert_called_once_with(
       4,
       prop_types = [
@@ -139,6 +145,7 @@ class DocumentHighlightsRendererTest( TestCase ):
 
     self.assertEqual(
       [
+        call( 'bufexists( 4 )' ),
         call(
           'nvim_buf_clear_namespace( 4, '
           '                          17, '

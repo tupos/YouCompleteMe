@@ -93,6 +93,9 @@ class VimDocumentHighlightsRenderer:
 
 
   def Clear( self, buffer_number: int ) -> None:
+    if not vimsupport.BufferExists( buffer_number ):
+      return
+
     vimsupport.ClearTextProperties(
       buffer_number,
       prop_types = list( DOCUMENT_HIGHLIGHT_GROUPS )
@@ -141,6 +144,8 @@ class NeovimDocumentHighlightsRenderer:
 
 
   def Clear( self, buffer_number: int ) -> None:
+    if not vimsupport.BufferExists( buffer_number ):
+      return
     vim.eval(
       f'nvim_buf_clear_namespace( { buffer_number }, '
       f'                          { self._namespace_id }, '

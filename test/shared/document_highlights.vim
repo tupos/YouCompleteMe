@@ -190,6 +190,35 @@ function! Test_DocumentHighlights_ReplacesAndClearsRendering() abort
 endfunction
 
 
+function! Test_DocumentHighlights_ClearsAfterBufferIsWipedOut() abort
+  if !py3eval( 'YCM_TEST_DOCUMENT_HIGHLIGHTS_SUPPORTED' )
+    throw 'Skipped: document highlights are not supported'
+  endif
+
+  new
+  call setline( 1, 'value' )
+  let buffer_number = bufnr()
+
+  call YcmTest_DrawDocumentHighlights( buffer_number, [
+        \ {
+        \   'kind': 'Text',
+        \   'range': {
+        \     'start': { 'line_num': 1, 'column_num': 1 },
+        \     'end': { 'line_num': 1, 'column_num': 6 },
+        \   },
+        \ },
+        \ ] )
+
+  silent bwipeout!
+  call assert_false( bufexists( buffer_number ) )
+
+  " Closing a temporary buffer, such as Fugitive's commit buffer, removes its
+  " decorations before YCM's buffer-enter cleanup runs. Cleanup must therefore
+  " tolerate the rendered buffer no longer existing.
+  call YcmTest_DrawDocumentHighlights( buffer_number, [] )
+endfunction
+
+
 function! Test_DocumentHighlights_ClearPreservesUnrelatedDecorations() abort
   if !py3eval( 'YCM_TEST_DOCUMENT_HIGHLIGHTS_SUPPORTED' )
     throw 'Skipped: document highlights are not supported'
