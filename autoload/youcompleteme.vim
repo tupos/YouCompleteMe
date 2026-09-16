@@ -279,9 +279,15 @@ function! youcompleteme#Enable()
     " that happens *after* FileType has already triggered for the initial file.
     " We don't parse the buffer on the BufRead event since it would only be
     " useful if the buffer filetype is set (we ignore the buffer if there is no
-    " filetype) and if so, the FileType event has triggered before and thus the
-    " buffer is already parsed.
-    autocmd BufWritePost,FileWritePost * call s:OnFileSave()
+    " filetype) and, if so, the FileType event has already triggered.
+    "
+    " BufReadPost is still needed when an already configured buffer is reloaded
+    " from disk. In that case, notify ycmd that the buffer now contains the
+    " saved file contents.
+    autocmd BufReadPost * call s:OnFileReload(
+          \ str2nr( expand( '<abuf>' ) ) )
+    autocmd BufWritePost,FileWritePost * call s:OnFileSave(
+          \ str2nr( expand( '<abuf>' ) ) )
     autocmd FileType * call s:OnFileTypeSet()
     autocmd BufEnter,CmdwinEnter,WinEnter * call s:OnBufferEnter()
     autocmd BufUnload * call s:OnBufferUnload()
@@ -866,12 +872,20 @@ function! s:OnFileTypeSet()
 endfunction
 
 
-function! s:OnFileSave()
-  let buffer_number = str2nr( expand( '<abuf>' ) )
-  if !s:AllowedToCompleteInBuffer( buffer_number )
+function! s:OnFileReload( buffer_number )
+  if !getbufvar( a:buffer_number, 'ycm_completing', 0 )
     return
   endif
-  py3 ycm_state.OnFileSave( vimsupport.GetIntValue( 'buffer_number' ) )
+  call s:OnFileSave( a:buffer_number )
+endfunction
+
+
+function! s:OnFileSave( buffer_number )
+  if !s:AllowedToCompleteInBuffer( a:buffer_number )
+    return
+  endif
+  py3 ycm_state.OnFileSave(
+        \ vimsupport.GetIntValue( 'a:buffer_number' ) )
 endfunction
 
 

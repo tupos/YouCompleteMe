@@ -40,6 +40,41 @@ function! YcmTest_RequestDiagnostics()
 endfunction
 
 
+function! s:LocationListContains( text ) abort
+  return !empty( filter(
+        \ getloclist( 0 ),
+        \ { _, item -> stridx( item.text, a:text ) >= 0 } ) )
+endfunction
+
+
+function! Test_Diagnostics_Refresh_After_File_Reload()
+  let filepath = tempname() . '.cpp'
+  call writefile(
+        \ [ 'int main() { return missing_before_reload; }' ],
+        \ filepath )
+  silent execute 'edit ' . fnameescape( filepath )
+  call youcompleteme#test#setup#WaitForInitialParse( {} )
+
+  call WaitForAssert( {->
+        \ assert_true(
+        \   s:LocationListContains( 'missing_before_reload' ) ) } )
+
+  call writefile(
+        \ [ 'int main() { return missing_after_reload; }' ],
+        \ filepath )
+  silent edit!
+
+  call WaitForAssert( {->
+        \ assert_true(
+        \   s:LocationListContains( 'missing_after_reload' ) ) } )
+  call assert_false(
+        \ s:LocationListContains( 'missing_before_reload' ) )
+
+  %bwipe!
+  call delete( filepath )
+endfunction
+
+
 function! Test_Diagnostics_Update_In_Insert_Mode()
   call youcompleteme#test#setup#OpenFile(
     \ '/test/testdata/cpp/new_file.cpp', {} )
