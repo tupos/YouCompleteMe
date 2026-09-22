@@ -118,15 +118,23 @@ class SemanticHighlighting( sr.ScrollingBufferRange ):
     highlights: list[ SemanticHighlight ] = []
     for token in tokens:
       rng = token[ 'range' ]
-      self.GrowRangeIfNeeded( rng )
       highlights.append( (
         f"YCM_HL_{ token[ 'type' ] }",
         rng
       ) )
 
-    for property_type in self._renderer.Render(
-        self._bufnr,
-        highlights ):
+    missing_property_types: list[ str ] = self._renderer.Render(
+      self._bufnr,
+      highlights
+    )
+
+    covered_range: dict[ str, dict[ str, object ] ] | None = (
+      self._latest_response.get( 'covered_range' )
+    )
+    if covered_range is not None:
+      self._last_requested_range = covered_range
+
+    for property_type in missing_property_types:
       token_type = property_type.removeprefix( 'YCM_HL_' )
       if token_type in REPORTED_MISSING_TYPES:
         continue
