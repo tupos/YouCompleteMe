@@ -1,6 +1,26 @@
 " This file provides the Vim adapter for the shared diagnostics integration
 " tests. The actual tests and common setup are in test/shared/diagnostics.vim.
 
+function! YcmTest_HasSemanticHighlight(
+      \ buffer_number,
+      \ line_number,
+      \ column_number,
+      \ length,
+      \ property_type ) abort
+  for property in prop_list(
+        \ a:line_number,
+        \ { 'bufnr': a:buffer_number } )
+    if property.col == a:column_number &&
+          \ property.length == a:length &&
+          \ property.type ==# a:property_type
+      return v:true
+    endif
+  endfor
+
+  return v:false
+endfunction
+
+
 function! YcmTest_DetailedDiagnosticWindow() abort
   redraw
   let popups = popup_list()

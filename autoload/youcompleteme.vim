@@ -283,7 +283,7 @@ function! youcompleteme#Enable()
     "
     " BufReadPost is still needed when an already configured buffer is reloaded
     " from disk. In that case, notify ycmd that the buffer now contains the
-    " saved file contents.
+    " saved file contents and refresh features derived from those contents.
     autocmd BufReadPost * call s:OnFileReload(
           \ str2nr( expand( '<abuf>' ) ) )
     autocmd BufWritePost,FileWritePost * call s:OnFileSave(
@@ -877,6 +877,7 @@ function! s:OnFileReload( buffer_number )
     return
   endif
   call s:OnFileSave( a:buffer_number )
+  call s:OnFileReadyToParse( 1 )
 endfunction
 
 

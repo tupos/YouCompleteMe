@@ -10,6 +10,7 @@
 "   YcmTest_VirtualDiagnosticProperties()
 "   YcmTest_RenderedVirtualDiagnostics()
 "   YcmTest_DiagnosticHighlights( line_number )
+"   YcmTest_HasSemanticHighlight( buffer, line, column, length, type )
 
 function! SetUp()
   let g:ycm_use_clangd = 1
@@ -47,7 +48,7 @@ function! s:LocationListContains( text ) abort
 endfunction
 
 
-function! Test_Diagnostics_Refresh_After_File_Reload()
+function! Test_Diagnostics_And_Semantic_Highlighting_Refresh_After_File_Reload()
   let filepath = tempname() . '.cpp'
   call writefile(
         \ [ 'int main() { return missing_before_reload; }' ],
@@ -59,8 +60,22 @@ function! Test_Diagnostics_Refresh_After_File_Reload()
         \ assert_true(
         \   s:LocationListContains( 'missing_before_reload' ) ) } )
 
+  call WaitForAssert( {->
+        \ assert_true(
+        \   YcmTest_HasSemanticHighlight(
+        \     bufnr(),
+        \     1,
+        \     5,
+        \     4,
+        \     'YCM_HL_function' ) ) } )
+
   call writefile(
-        \ [ 'int main() { return missing_after_reload; }' ],
+        \ [
+        \   'int main() {',
+        \   '  int reloaded_value = 1;',
+        \   '  return reloaded_value + missing_after_reload;',
+        \   '}',
+        \ ],
         \ filepath )
   silent edit!
 
@@ -69,6 +84,15 @@ function! Test_Diagnostics_Refresh_After_File_Reload()
         \   s:LocationListContains( 'missing_after_reload' ) ) } )
   call assert_false(
         \ s:LocationListContains( 'missing_before_reload' ) )
+
+  call WaitForAssert( {->
+        \ assert_true(
+        \   YcmTest_HasSemanticHighlight(
+        \     bufnr(),
+        \     2,
+        \     7,
+        \     14,
+        \     'YCM_HL_variable' ) ) } )
 
   %bwipe!
   call delete( filepath )

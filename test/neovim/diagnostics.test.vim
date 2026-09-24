@@ -4,6 +4,47 @@
 let s:diagnostic_virtual_text_namespace = nvim_create_namespace(
       \ 'ycm_diagnostic_virtual_text' )
 
+function! YcmTest_HasSemanticHighlight(
+      \ buffer_number,
+      \ line_number,
+      \ column_number,
+      \ length,
+      \ property_type ) abort
+  let namespaces = nvim_get_namespaces()
+
+  for namespace_name in [
+        \ 'ycm_semantic_highlighting_0',
+        \ 'ycm_semantic_highlighting_1',
+        \ ]
+    let namespace = get( namespaces, namespace_name, -1 )
+    if namespace < 0
+      continue
+    endif
+
+    for extmark in nvim_buf_get_extmarks(
+          \ a:buffer_number,
+          \ namespace,
+          \ 0,
+          \ -1,
+          \ {
+          \   'details': v:true,
+          \   'hl_name': v:true,
+          \ } )
+      let details = extmark[ 3 ]
+      if extmark[ 1 ] == a:line_number - 1 &&
+            \ extmark[ 2 ] == a:column_number - 1 &&
+            \ details.end_row == a:line_number - 1 &&
+            \ details.end_col - extmark[ 2 ] == a:length &&
+            \ details.hl_group ==# a:property_type
+        return v:true
+      endif
+    endfor
+  endfor
+
+  return v:false
+endfunction
+
+
 function! YcmTest_DetailedDiagnosticWindow() abort
   redraw
   for window_id in nvim_list_wins()
