@@ -192,3 +192,49 @@ class ScrollingBufferRangeTest( TestCase ):
         self.assertEqual( 1, len( scrollable.requests ) )
         self.assertTrue( scrollable.requests[ 0 ].started )
         self.assertIs( scrollable.requests[ 0 ], scrollable._request )
+
+
+  @patch(
+    'ycm.scrolling_range.vimsupport.RangeVisibleInBuffer',
+    return_value = {
+      'start': {
+        'line_num': 20,
+        'column_num': 1,
+      },
+      'end': {
+        'line_num': 40,
+        'column_num': 1,
+      },
+    }
+  )
+  @patch(
+    'ycm.scrolling_range.vimsupport.VisibleRangeOfBufferOverlaps',
+    return_value = False
+  )
+  @patch(
+    'ycm.scrolling_range.vimsupport.GetBufferChangedTick',
+    return_value = 7
+  )
+  def test_RequestPreservesRenderedSnapshotOnlyWhenScrolling(
+      self,
+      get_buffer_changed_tick: object,
+      visible_range_of_buffer_overlaps: object,
+      range_visible_in_buffer: object ) -> None:
+    scenarios: tuple[ tuple[ int | None, bool, bool ], ... ] = (
+      ( 7, False, True ),
+      ( 6, False, False ),
+      ( 7, True, False ),
+    )
+
+    for rendered_tick, force, expected in scenarios:
+      with self.subTest(
+          rendered_tick = rendered_tick,
+          force = force ):
+        scrollable = TrackingScrollingBufferRange( 1 )
+        scrollable._rendered_tick = rendered_tick
+
+        self.assertTrue( scrollable.Request( force = force ) )
+        self.assertEqual(
+          expected,
+          scrollable.PreserveRenderedSnapshot()
+        )

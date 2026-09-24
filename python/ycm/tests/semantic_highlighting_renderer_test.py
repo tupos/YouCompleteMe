@@ -76,7 +76,11 @@ class SemanticHighlightingRendererTest( TestCase ):
     ]
 
     ComparisonCountingString.comparisons = 0
-    missing_property_types: list[ str ] = renderer.Render( 1, highlights )
+    missing_property_types: list[ str ] = renderer.Render(
+      1,
+      highlights,
+      False
+    )
 
     self.assertEqual( 0, ComparisonCountingString.comparisons )
     self.assertEqual( property_types, missing_property_types )
@@ -85,3 +89,118 @@ class SemanticHighlightingRendererTest( TestCase ):
       add_text_property_for_range.call_count
     )
     clear_text_properties.assert_called_once()
+
+
+  @patch(
+    'ycm.semantic_highlighting_renderer.vimsupport.ClearTextProperties'
+  )
+  @patch(
+    'ycm.semantic_highlighting_renderer.vimsupport.'
+    'AddTextPropertyForRange'
+  )
+  def test_VimScrollAddsOnlyPreviouslyUnseenHighlights(
+      self,
+      add_text_property_for_range: MagicMock,
+      clear_text_properties: MagicMock ) -> None:
+    renderer = (
+      semantic_highlighting_renderer.VimSemanticHighlightingRenderer(
+        { 'YCM_HL_variable': 'Identifier' }
+      )
+    )
+    first_range: semantic_highlighting_renderer.SemanticRange = {
+      'start': { 'line_num': 1, 'column_num': 1 },
+      'end': { 'line_num': 1, 'column_num': 6 },
+    }
+    retained_range: semantic_highlighting_renderer.SemanticRange = {
+      'start': { 'line_num': 2, 'column_num': 1 },
+      'end': { 'line_num': 2, 'column_num': 7 },
+    }
+    new_range: semantic_highlighting_renderer.SemanticRange = {
+      'start': { 'line_num': 3, 'column_num': 1 },
+      'end': { 'line_num': 3, 'column_num': 4 },
+    }
+
+    renderer.Render(
+      1,
+      [
+        ( 'YCM_HL_variable', first_range ),
+        ( 'YCM_HL_variable', retained_range ),
+      ],
+      False
+    )
+    add_text_property_for_range.reset_mock()
+    clear_text_properties.reset_mock()
+
+    renderer.Render(
+      1,
+      [
+        ( 'YCM_HL_variable', retained_range ),
+        ( 'YCM_HL_variable', new_range ),
+      ],
+      True
+    )
+
+    add_text_property_for_range.assert_called_once_with(
+      1,
+      renderer._property_id,
+      'YCM_HL_variable',
+      new_range
+    )
+    clear_text_properties.assert_not_called()
+
+
+  @patch(
+    'ycm.semantic_highlighting_renderer.vimsupport.GetIntValue',
+    side_effect = [ 10, 11, 101, 102, 103 ]
+  )
+  def test_NeovimScrollAddsOnlyPreviouslyUnseenHighlights(
+      self,
+      get_int_value: MagicMock ) -> None:
+    renderer = (
+      semantic_highlighting_renderer.NeovimSemanticHighlightingRenderer(
+        'ycm_semantic_highlighting',
+        { 'YCM_HL_variable': 'Identifier' }
+      )
+    )
+    first_range: semantic_highlighting_renderer.SemanticRange = {
+      'start': { 'line_num': 1, 'column_num': 1 },
+      'end': { 'line_num': 1, 'column_num': 6 },
+    }
+    retained_range: semantic_highlighting_renderer.SemanticRange = {
+      'start': { 'line_num': 2, 'column_num': 1 },
+      'end': { 'line_num': 2, 'column_num': 7 },
+    }
+    new_range: semantic_highlighting_renderer.SemanticRange = {
+      'start': { 'line_num': 3, 'column_num': 1 },
+      'end': { 'line_num': 3, 'column_num': 4 },
+    }
+
+    with patch.object(
+        renderer,
+        '_ClearNamespace'
+    ) as clear_namespace:
+      renderer.Render(
+        1,
+        [
+          ( 'YCM_HL_variable', first_range ),
+          ( 'YCM_HL_variable', retained_range ),
+        ],
+        False
+      )
+      get_int_value.reset_mock()
+      clear_namespace.reset_mock()
+
+      renderer.Render(
+        1,
+        [
+          ( 'YCM_HL_variable', retained_range ),
+          ( 'YCM_HL_variable', new_range ),
+        ],
+        True
+      )
+
+    self.assertEqual( 1, get_int_value.call_count )
+    extmark_call: str = get_int_value.call_args.args[ 0 ]
+    self.assertIn( '                      11, ', extmark_call )
+    self.assertIn( '                      2, ', extmark_call )
+    clear_namespace.assert_not_called()

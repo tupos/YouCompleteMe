@@ -29,7 +29,9 @@ from ycm.semantic_highlighting_renderer import SemanticHighlight
 class RecordingRenderer:
 
   def __init__( self ) -> None:
-    self.rendered: list[ tuple[ int, list[ SemanticHighlight ] ] ] = []
+    self.rendered: list[
+      tuple[ int, list[ SemanticHighlight ], bool ]
+    ] = []
 
 
   def Initialise( self ) -> bool:
@@ -39,9 +41,12 @@ class RecordingRenderer:
   def Render(
       self,
       buffer_number: int,
-      highlights: list[ SemanticHighlight ]
+      highlights: list[ SemanticHighlight ],
+      preserve_existing: bool
   ) -> list[ str ]:
-    self.rendered.append( ( buffer_number, highlights ) )
+    self.rendered.append(
+      ( buffer_number, highlights, preserve_existing )
+    )
     return []
 
 
@@ -109,7 +114,8 @@ class SemanticHighlightingTest( TestCase ):
           [
             ( 'YCM_HL_variable', first_token_range ),
             ( 'YCM_HL_comment', last_token_range ),
-          ]
+          ],
+          False
         )
       ],
       renderer.rendered

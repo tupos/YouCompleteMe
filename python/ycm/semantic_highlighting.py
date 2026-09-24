@@ -125,7 +125,8 @@ class SemanticHighlighting( sr.ScrollingBufferRange ):
 
     missing_property_types: list[ str ] = self._renderer.Render(
       self._bufnr,
-      highlights
+      highlights,
+      self.PreserveRenderedSnapshot()
     )
 
     covered_range: dict[ str, dict[ str, object ] ] | None = (

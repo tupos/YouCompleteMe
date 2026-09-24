@@ -26,14 +26,16 @@ class ScrollingBufferRange( object ):
 
   # FIXME: Send a request per-disjoint range for this buffer rather than the
   # maximal range. then collaate the results when all responses are returned
-  def __init__( self, bufnr ):
-    self._bufnr = bufnr
-    self._tick = -1
+  def __init__( self, bufnr: int ) -> None:
+    self._bufnr: int = bufnr
+    self._tick: int = -1
     self._request = None
     self._last_requested_range = None
+    self._rendered_tick: int | None = None
+    self._preserve_rendered_snapshot: bool = False
 
 
-  def Ready( self ):
+  def Ready( self ) -> bool:
     return self._request is not None and self._request.Done()
 
 
@@ -65,6 +67,10 @@ class ScrollingBufferRange( object ):
       self.Cancel()
       return False
 
+    self._preserve_rendered_snapshot = (
+      not force and self._rendered_tick == current_tick
+    )
+
     self.Cancel()
     self._last_requested_range = requested_range
     self._tick = current_tick
@@ -84,7 +90,7 @@ class ScrollingBufferRange( object ):
     self._request = None
 
 
-  def Update( self ):
+  def Update( self ) -> bool:
     if not self._request:
       # Nothing to update
       return True
@@ -102,12 +108,13 @@ class ScrollingBufferRange( object ):
       return False # poll again
 
     self._Draw()
+    self._rendered_tick = self._tick
 
     # No need to re-poll
     return True
 
 
-  def Refresh( self ):
+  def Refresh( self ) -> None:
     if self._tick != vimsupport.GetBufferChangedTick( self._bufnr ):
       # stale data
       return
@@ -116,10 +123,18 @@ class ScrollingBufferRange( object ):
       # request in progress; we''l handle refreshing when it's done.
       return
 
+    self._preserve_rendered_snapshot = False
     self._Draw()
+    self._rendered_tick = self._tick
 
 
-  def GrowRangeIfNeeded( self, rng ):
+  def PreserveRenderedSnapshot( self ) -> bool:
+    return self._preserve_rendered_snapshot
+
+
+  def GrowRangeIfNeeded(
+      self,
+      rng: dict[ str, dict[ str, object ] ] ) -> None:
     """When processing results, we may receive a wider range than requested. In
     that case, grow our 'last requested' range to minimise requesting more
     frequently than we need to."""
