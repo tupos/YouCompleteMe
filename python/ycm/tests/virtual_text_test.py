@@ -32,6 +32,44 @@ HIGHLIGHT_GROUPS: dict[ str, str ] = {
 }
 
 
+class RecordingVirtualTextRenderer:
+
+  def __init__( self ) -> None:
+    self.initialise_calls: int = 0
+    self.clear_calls: list[ int ] = []
+    self.render_calls: list[
+      tuple[ int, int, int, list[ virtual_text.VirtualTextChunk ] ]
+    ] = []
+
+
+  def Initialise( self ) -> bool:
+    self.initialise_calls += 1
+    return True
+
+
+  def Clear( self, buffer_number: int ) -> None:
+    self.clear_calls.append( buffer_number )
+
+
+  def Render(
+      self,
+      buffer_number: int,
+      line_number: int,
+      column_number: int,
+      chunks: list[ virtual_text.VirtualTextChunk ] ) -> None:
+    self.render_calls.append(
+      ( buffer_number, line_number, column_number, chunks )
+    )
+
+
+  def RenderAtEndOfLine(
+      self,
+      buffer_number: int,
+      line_number: int,
+      chunks: list[ virtual_text.VirtualTextChunk ] ) -> None:
+    raise AssertionError( 'Unexpected end-of-line render' )
+
+
 class VirtualTextTest( TestCase ):
 
   @patch( 'ycm.virtual_text.vimsupport.GetTextPropertyTypes' )
@@ -160,4 +198,65 @@ class VirtualTextTest( TestCase ):
       '                      3, '
       '                      {"virt_text": [["  ", "YcmVirtDiagPadding"], '
       '["\\u26a0 bad", "YcmVirtDiagError"]], "virt_text_pos": "inline"} )'
+    )
+
+
+  def test_DoubleBufferedRendererAddsOnlyPreviouslyUnseenDecorations(
+      self ) -> None:
+    first_renderer = RecordingVirtualTextRenderer()
+    second_renderer = RecordingVirtualTextRenderer()
+    renderer = virtual_text.DoubleBufferedVirtualTextRenderer( (
+      first_renderer,
+      second_renderer,
+    ) )
+    first: virtual_text.VirtualTextDecoration = (
+      1,
+      6,
+      ( ( ': first', 'YCM_INLAY_Type' ), ),
+    )
+    retained: virtual_text.VirtualTextDecoration = (
+      2,
+      7,
+      ( ( ': retained', 'YCM_INLAY_Type' ), ),
+    )
+    new: virtual_text.VirtualTextDecoration = (
+      3,
+      4,
+      ( ( ': new', 'YCM_INLAY_Type' ), ),
+    )
+
+    self.assertTrue( renderer.Initialise() )
+    renderer.Render(
+      3,
+      [ first, retained ],
+      False
+    )
+
+    self.assertEqual( 1, first_renderer.initialise_calls )
+    self.assertEqual( 1, second_renderer.initialise_calls )
+    self.assertEqual( [ 3 ], first_renderer.clear_calls )
+    self.assertEqual( [ 3 ], second_renderer.clear_calls )
+    self.assertEqual(
+      [
+        ( 3, 1, 6, [ ( ': first', 'YCM_INLAY_Type' ) ] ),
+        ( 3, 2, 7, [ ( ': retained', 'YCM_INLAY_Type' ) ] ),
+      ],
+      second_renderer.render_calls
+    )
+
+    first_renderer.clear_calls.clear()
+    second_renderer.clear_calls.clear()
+    second_renderer.render_calls.clear()
+
+    renderer.Render(
+      3,
+      [ retained, new ],
+      True
+    )
+
+    self.assertEqual( [], first_renderer.clear_calls )
+    self.assertEqual( [], second_renderer.clear_calls )
+    self.assertEqual(
+      [ ( 3, 3, 4, [ ( ': new', 'YCM_INLAY_Type' ) ] ) ],
+      second_renderer.render_calls
     )
