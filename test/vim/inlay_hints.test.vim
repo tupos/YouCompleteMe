@@ -20,7 +20,12 @@ function! YcmTest_GetRenderedInlayHints( buffer_number ) abort
     for property in prop_list(
           \ line_number,
           \ { 'bufnr': a:buffer_number } )
-      if property.type !~# '^YCM_INLAY_'
+      let property_type = substitute(
+            \ property.type,
+            \ '_[01]$',
+            \ '',
+            \ '' )
+      if property_type !~# '^YCM_INLAY_'
         continue
       endif
 
@@ -38,7 +43,7 @@ function! YcmTest_GetRenderedInlayHints( buffer_number ) abort
       " opposite order from that in which Vim displays them.
       call insert(
             \ rendered_hints[ -1 ].chunks,
-            \ [ property.text, property.type ],
+            \ [ property.text, property_type ],
             \ 0 )
     endfor
   endfor

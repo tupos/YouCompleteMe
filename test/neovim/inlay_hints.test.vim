@@ -11,15 +11,18 @@ execute 'source ' . fnameescape(
 
 
 function! YcmTest_GetRenderedInlayHints( buffer_number ) abort
-  let namespace = get(
-        \ nvim_get_namespaces(),
-        \ 'ycm_inlay_hints',
-        \ -1 )
-  if namespace < 0
-    return []
-  endif
-
   let rendered_hints = []
+  let namespaces = nvim_get_namespaces()
+
+  for namespace_name in [
+        \ 'ycm_inlay_hints_0',
+        \ 'ycm_inlay_hints_1',
+        \ ]
+    let namespace = get( namespaces, namespace_name, -1 )
+    if namespace < 0
+      continue
+    endif
+
     for extmark in nvim_buf_get_extmarks(
         \ a:buffer_number,
         \ namespace,
@@ -27,22 +30,23 @@ function! YcmTest_GetRenderedInlayHints( buffer_number ) abort
         \ -1,
         \ { 'details': v:true } )
       call assert_equal( 'inline', extmark[ 3 ].virt_text_pos )
-    let line_number = extmark[ 1 ] + 1
-    let column_number = extmark[ 2 ] + 1
+      let line_number = extmark[ 1 ] + 1
+      let column_number = extmark[ 2 ] + 1
 
-    if empty( rendered_hints ) ||
-          \ rendered_hints[ -1 ].line != line_number ||
-          \ rendered_hints[ -1 ].column != column_number
-      call add( rendered_hints, {
-            \ 'line': line_number,
-            \ 'column': column_number,
-            \ 'chunks': [],
-            \ } )
-    endif
+      if empty( rendered_hints ) ||
+            \ rendered_hints[ -1 ].line != line_number ||
+            \ rendered_hints[ -1 ].column != column_number
+        call add( rendered_hints, {
+              \ 'line': line_number,
+              \ 'column': column_number,
+              \ 'chunks': [],
+              \ } )
+      endif
 
-    call extend(
-          \ rendered_hints[ -1 ].chunks,
-          \ extmark[ 3 ].virt_text )
+      call extend(
+            \ rendered_hints[ -1 ].chunks,
+            \ extmark[ 3 ].virt_text )
+    endfor
   endfor
 
   return rendered_hints

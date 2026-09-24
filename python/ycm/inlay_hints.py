@@ -20,9 +20,10 @@ from ycm.client.inlay_hints_request import InlayHintsRequest
 from ycm.client.base_request import BuildRequestData
 from ycm.client.request_operation import RequestOperationManager
 from ycm import scrolling_range as sr
-from ycm.virtual_text import ( CreateVirtualTextRenderer,
+from ycm.virtual_text import ( CreateVirtualTextSnapshotRenderer,
                                VirtualTextChunk,
-                               VirtualTextRenderer )
+                               VirtualTextDecoration,
+                               VirtualTextSnapshotRenderer )
 
 
 HIGHLIGHT_GROUP: dict[ str, str ] = {
@@ -43,7 +44,7 @@ INLAY_HINT_NAMESPACE: str = 'ycm_inlay_hints'
 
 
 def Initialise() -> bool:
-  return CreateVirtualTextRenderer(
+  return CreateVirtualTextSnapshotRenderer(
     INLAY_HINT_NAMESPACE,
     INLAY_HINT_HIGHLIGHT_GROUPS
   ).Initialise()
@@ -56,13 +57,13 @@ class InlayHints( sr.ScrollingBufferRange ):
       self,
       bufnr: int,
       request_operation_manager: RequestOperationManager,
-      renderer: VirtualTextRenderer | None = None ) -> None:
+      renderer: VirtualTextSnapshotRenderer | None = None ) -> None:
     super().__init__( bufnr )
     self._request_operation_manager = request_operation_manager
-    self._renderer: VirtualTextRenderer = (
+    self._renderer: VirtualTextSnapshotRenderer = (
       renderer
       if renderer is not None
-      else CreateVirtualTextRenderer(
+      else CreateVirtualTextSnapshotRenderer(
         INLAY_HINT_NAMESPACE,
         INLAY_HINT_HIGHLIGHT_GROUPS
       )
@@ -86,7 +87,7 @@ class InlayHints( sr.ScrollingBufferRange ):
 
 
   def _Draw( self ) -> None:
-    self.Clear()
+    decorations: list[ VirtualTextDecoration ] = []
 
     for inlay_hint in self._latest_response:
       if 'kind' not in inlay_hint:
@@ -115,9 +116,14 @@ class InlayHints( sr.ScrollingBufferRange ):
       if inlay_hint.get( 'paddingRight', False ):
         chunks.append( ( ' ', 'YCM_INLAY_PADDING' ) )
 
-      self._renderer.Render(
-        self._bufnr,
+      decorations.append( (
         int( inlay_hint[ 'position' ][ 'line_num' ] ),
         int( inlay_hint[ 'position' ][ 'column_num' ] ),
-        chunks
-      )
+        tuple( chunks ),
+      ) )
+
+    self._renderer.Render(
+      self._bufnr,
+      decorations,
+      self.PreserveRenderedSnapshot()
+    )
