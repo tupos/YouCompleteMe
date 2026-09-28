@@ -248,6 +248,36 @@ class YouCompleteMeTest( TestCase ):
     document_highlights.Clear.assert_called_once_with()
 
 
+  @YouCompleteMeInstance()
+  @patch(
+    'ycm.youcompleteme.vimsupport.BufferExists',
+    return_value = True
+  )
+  def test_YouCompleteMe_RestartServer_ClearsDiagnosticsUI(
+      self,
+      ycm: YouCompleteMe,
+      buffer_exists: MagicMock
+  ) -> None:
+    first_buffer: MagicMock = MagicMock()
+    second_buffer: MagicMock = MagicMock()
+    ycm._buffers = {
+      1: first_buffer,
+      2: second_buffer,
+    }
+
+    with patch.object( ycm, '_ShutdownServer' ):
+      with patch.object( ycm, '_SetUpServer' ):
+        ycm.RestartServer()
+
+    buffer_exists.assert_has_calls( [
+      call( 1 ),
+      call( 2 ),
+    ] )
+    assert_that( buffer_exists.call_count, equal_to( 2 ) )
+    first_buffer.ClearDiagnosticsUI.assert_called_once_with()
+    second_buffer.ClearDiagnosticsUI.assert_called_once_with()
+
+
   @patch( 'ycm.vimsupport.PostVimMessage' )
   def test_YouCompleteMe_InvalidPythonInterpreterPath( self, post_vim_message ):
     with UserOptions( {

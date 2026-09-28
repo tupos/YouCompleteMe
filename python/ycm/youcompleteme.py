@@ -356,8 +356,15 @@ class YouCompleteMe:
     SendShutdownRequest()
 
 
-  def RestartServer( self ):
+  def _ClearDiagnosticsUIForAllBuffers( self ) -> None:
+    for buffer_number, buffer in self._buffers.items():
+      if vimsupport.BufferExists( buffer_number ):
+        buffer.ClearDiagnosticsUI()
+
+
+  def RestartServer( self ) -> None:
     vimsupport.PostVimMessage( 'Restarting ycmd server...' )
+    self._ClearDiagnosticsUIForAllBuffers()
     self._ShutdownServer()
     self._SetUpServer()
 

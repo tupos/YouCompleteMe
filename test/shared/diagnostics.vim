@@ -249,6 +249,36 @@ function! TearDown_Test_DiagnosticVirtualText()
         \ 'ycm_echo_current_diagnostic' )
 endfunction
 
+
+function! SetUp_Test_RestartServerClearsDiagnosticVirtualText()
+  call SetUp_Test_DiagnosticVirtualText()
+endfunction
+
+
+function! Test_RestartServerClearsDiagnosticVirtualText()
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/fixit.cpp',
+        \ {} )
+
+  call cursor( [ 3, 1 ] )
+  doautocmd <nomodeline> CursorMoved
+  call WaitForAssert( {->
+        \ assert_equal(
+        \   1,
+        \   len( YcmTest_RenderedVirtualDiagnostics() ) ) } )
+
+  silent YcmRestartServer
+
+  call assert_true(
+        \ empty( YcmTest_VirtualDiagnosticProperties() ) )
+endfunction
+
+
+function! TearDown_Test_RestartServerClearsDiagnosticVirtualText()
+  call TearDown_Test_DiagnosticVirtualText()
+endfunction
+
+
 function! Test_Changing_Filetype_Refreshes_Diagnostics()
   call youcompleteme#test#setup#OpenFile(
         \ '/test/testdata/diagnostics/foo.xml',
