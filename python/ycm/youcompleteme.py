@@ -659,7 +659,10 @@ class YouCompleteMe:
       pass
 
 
-  def OnPeriodicTick( self ):
+  def OnPeriodicTick(
+      self,
+      create_new_message_polls: bool
+  ) -> bool:
     if not self.IsServerAlive():
       # Server has died. We'll reset when the server is started again.
       self._work_done_progress.Clear()
@@ -668,17 +671,32 @@ class YouCompleteMe:
       # Try again in a jiffy
       return True
 
-    for w in vim.windows:
-      for filetype in vimsupport.FiletypesForBuffer( w.buffer ):
-        if filetype not in self._message_poll_requests:
-          self._message_poll_requests[ filetype ] = MessagesPoll( w.buffer )
+    filetypes_to_poll: set[ str ] = set()
 
-        # None means don't poll this filetype
-        if ( self._message_poll_requests[ filetype ] and
-             not self._message_poll_requests[ filetype ].Poll( self ) ):
-          self._message_poll_requests[ filetype ] = None
+    if create_new_message_polls:
+      for window in vim.windows:
+        for filetype in vimsupport.FiletypesForBuffer( window.buffer ):
+          filetypes_to_poll.add( filetype )
+          if filetype not in self._message_poll_requests:
+            self._message_poll_requests[ filetype ] = MessagesPoll(
+              window.buffer
+            )
 
-    return any( self._message_poll_requests.values() )
+    # Progress belongs to a language server whose buffers may no longer be
+    # visible. Keep its existing message poll alive until its end update has
+    # been received.
+    if self._work_done_progress.Items():
+      filetypes_to_poll.update( self._message_poll_requests )
+
+    for filetype in filetypes_to_poll:
+      message_poll = self._message_poll_requests.get( filetype )
+      if message_poll and not message_poll.Poll( self ):
+        self._message_poll_requests[ filetype ] = None
+
+    return any(
+      self._message_poll_requests.get( filetype )
+      for filetype in filetypes_to_poll
+    )
 
 
   def OnFileReadyToParse( self ):

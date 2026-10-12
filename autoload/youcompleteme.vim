@@ -126,18 +126,25 @@ endfunction
 
 
 function! s:ReceiveMessages( timer_id )
+  let create_new_message_polls = s:AllowedToCompleteInCurrentBuffer()
+  let has_work_done_progress = !empty( s:work_done_progress )
   let poll_again = v:false
-  if s:AllowedToCompleteInCurrentBuffer()
-    let poll_again = py3eval( 'ycm_state.OnPeriodicTick()' )
+
+  if create_new_message_polls || has_work_done_progress
+    let poll_again = py3eval(
+          \ 'ycm_state.OnPeriodicTick( '
+          \ . 'vimsupport.GetBoolValue( "create_new_message_polls" ) )' )
   endif
+
   call s:UpdateWorkDoneProgress()
 
-  if poll_again
+  if poll_again &&
+        \ ( create_new_message_polls || !empty( s:work_done_progress ) )
     let s:pollers.receive_messages.id = timer_start(
           \ s:pollers.receive_messages.wait_milliseconds,
           \ function( 's:ReceiveMessages' ) )
   else
-    " Don't poll again until we open another buffer
+    " Don't poll again until we open another buffer or display new progress.
     let s:pollers.receive_messages.id = -1
   endif
 endfunction

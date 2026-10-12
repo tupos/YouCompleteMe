@@ -72,7 +72,8 @@ def MockAsyncServerResponseDone( response ):
       ycm._message_poll_requests[ filetype ]._response_future = mock_response
       # Needed to keep a reference to the mocked dictionary
       mock_future = ycm._message_poll_requests[ filetype ]._response_future
-      ycm.OnPeriodicTick() # Uses ycm._message_poll_requests[ filetype ] ...
+      # Uses ycm._message_poll_requests[ filetype ] ...
+      ycm.OnPeriodicTick( True )
   """
   return mock.MagicMock( wraps = FakeFuture( True, response ) )
 
@@ -88,7 +89,8 @@ def MockAsyncServerResponseInProgress():
       ycm._message_poll_requests[ filetype ]._response_future = mock_response
       # Needed to keep a reference to the mocked dictionary
       mock_future = ycm._message_poll_requests[ filetype ]._response_future
-      ycm.OnPeriodicTick() # Uses ycm._message_poll_requests[ filetype ] ...
+      # Uses ycm._message_poll_requests[ filetype ] ...
+      ycm.OnPeriodicTick( True )
   """
   return mock.MagicMock( wraps = FakeFuture( False ) )
 
@@ -104,7 +106,8 @@ def MockAsyncServerResponseException( exception ):
       ycm._message_poll_requests[ filetype ]._response_future = mock_response
       # Needed to keep a reference to the mocked dictionary
       mock_future = ycm._message_poll_requests[ filetype ]._response_future
-      ycm.OnPeriodicTick() # Uses ycm._message_poll_requests[ filetype ] ...
+      # Uses ycm._message_poll_requests[ filetype ] ...
+      ycm.OnPeriodicTick( True )
   """
   return mock.MagicMock( wraps = FakeFuture( True, None, exception ) )
 
