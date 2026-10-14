@@ -15,13 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
 from typing import Protocol
 
 import vim
 
 from ycmd.utils import ToBytes
-from ycm import vimsupport
+from ycm import neovim_support, vimsupport
 
 
 VirtualTextChunk = tuple[ str, str ]
@@ -52,6 +51,13 @@ class VirtualTextRenderer( Protocol ):
       line_number: int,
       column_number: int,
       chunks: list[ VirtualTextChunk ] ) -> None:
+    ...
+
+
+  def RenderBatch(
+      self,
+      buffer_number: int,
+      decorations: list[ VirtualTextDecoration ] ) -> None:
     ...
 
 
@@ -170,6 +176,19 @@ class VimVirtualTextRenderer:
     )
 
 
+  def RenderBatch(
+      self,
+      buffer_number: int,
+      decorations: list[ VirtualTextDecoration ] ) -> None:
+    for line_number, column_number, chunks in decorations:
+      self.Render(
+        buffer_number,
+        line_number,
+        column_number,
+        list( chunks )
+      )
+
+
   def _Render(
       self,
       buffer_number: int,
@@ -264,6 +283,27 @@ class NeovimVirtualTextRenderer:
     )
 
 
+  def RenderBatch(
+      self,
+      buffer_number: int,
+      decorations: list[ VirtualTextDecoration ] ) -> None:
+    extmarks: list[ neovim_support.Extmark ] = []
+    for line_number, column_number, chunks in decorations:
+      extmarks.append( (
+        line_number - 1,
+        column_number - 1,
+        {
+          'virt_text': chunks,
+          'virt_text_pos': 'inline',
+        },
+      ) )
+    neovim_support.BatchSetExtmarks(
+      buffer_number,
+      self._namespace_id,
+      extmarks
+    )
+
+
   def _Render(
       self,
       buffer_number: int,
@@ -275,12 +315,10 @@ class NeovimVirtualTextRenderer:
       'virt_text': chunks,
       'virt_text_pos': position,
     }
-    vim.eval(
-      f'nvim_buf_set_extmark( { buffer_number }, '
-      f'                      { self._namespace_id }, '
-      f'                      { line_index }, '
-      f'                      { column_index }, '
-      f'                      { json.dumps( options ) } )'
+    neovim_support.BatchSetExtmarks(
+      buffer_number,
+      self._namespace_id,
+      [ ( line_index, column_index, options ) ]
     )
 
 
@@ -317,21 +355,11 @@ class DoubleBufferedVirtualTextRenderer:
       decorations: list[ VirtualTextDecoration ]
   ) -> dict[ VirtualTextDecoration, int ]:
     decoration_counts: dict[ VirtualTextDecoration, int ] = {}
-    for line_number, column_number, chunks in decorations:
-      decoration: VirtualTextDecoration = (
-        line_number,
-        column_number,
-        chunks,
-      )
-      renderer.Render(
-        buffer_number,
-        line_number,
-        column_number,
-        list( chunks )
-      )
+    for decoration in decorations:
       decoration_counts[ decoration ] = (
         decoration_counts.get( decoration, 0 ) + 1
       )
+    renderer.RenderBatch( buffer_number, decorations )
     return decoration_counts
 
 
@@ -341,12 +369,8 @@ class DoubleBufferedVirtualTextRenderer:
       buffer_number: int,
       decorations: list[ VirtualTextDecoration ] ) -> None:
     response_counts: dict[ VirtualTextDecoration, int ] = {}
-    for line_number, column_number, chunks in decorations:
-      decoration: VirtualTextDecoration = (
-        line_number,
-        column_number,
-        chunks,
-      )
+    unseen_decorations: list[ VirtualTextDecoration ] = []
+    for decoration in decorations:
       response_counts[ decoration ] = response_counts.get( decoration, 0 ) + 1
       if (
         response_counts[ decoration ] <=
@@ -354,12 +378,10 @@ class DoubleBufferedVirtualTextRenderer:
       ):
         continue
 
-      renderer.Render(
-        buffer_number,
-        line_number,
-        column_number,
-        list( chunks )
-      )
+      unseen_decorations.append( decoration )
+
+    renderer.RenderBatch( buffer_number, unseen_decorations )
+    for decoration in unseen_decorations:
       self._rendered_decoration_counts[ decoration ] = (
         response_counts[ decoration ]
       )

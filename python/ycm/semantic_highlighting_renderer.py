@@ -15,12 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with YouCompleteMe.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
 from typing import Protocol
 
 import vim
 
-from ycm import vimsupport
+from ycm import neovim_support, vimsupport
 
 
 SemanticRange = dict[ str, dict[ str, object ] ]
@@ -231,28 +230,17 @@ class NeovimSemanticHighlightingRenderer:
     )
 
 
-  def _DeleteExtmark(
-      self,
-      buffer_number: int,
-      namespace_id: int,
-      extmark_id: int ) -> None:
-    vim.eval(
-      f'nvim_buf_del_extmark( { buffer_number }, '
-      f'                      { namespace_id }, '
-      f'                      { extmark_id } )'
-    )
-
-
   def _RenderHighlights(
       self,
       buffer_number: int,
       namespace_id: int,
       highlights: list[ SemanticHighlight ],
       preserve_existing: bool,
-      rendered_highlights: set[ SemanticHighlightKey ],
-      rendered_extmark_ids: list[ int ] ) -> list[ str ]:
+      rendered_highlights: set[ SemanticHighlightKey ] ) -> list[ str ]:
     property_type_support: dict[ str, bool ] = {}
     missing_property_types: list[ str ] = []
+    extmarks: list[ neovim_support.Extmark ] = []
+    rendered_highlight_keys: list[ SemanticHighlightKey ] = []
 
     for highlight in highlights:
       highlight_key: SemanticHighlightKey = _HighlightKey( highlight )
@@ -285,14 +273,19 @@ class NeovimSemanticHighlightingRenderer:
         'hl_group': property_type,
         'priority': _NEOVIM_HIGHLIGHT_PRIORITY,
       }
-      rendered_extmark_ids.append( vimsupport.GetIntValue(
-        f'nvim_buf_set_extmark( { buffer_number }, '
-        f'                      { namespace_id }, '
-        f'                      { int( start[ "line_num" ] ) - 1 }, '
-        f'                      { int( start[ "column_num" ] ) - 1 }, '
-        f'                      { json.dumps( options ) } )'
+      extmarks.append( (
+        int( start[ 'line_num' ] ) - 1,
+        int( start[ 'column_num' ] ) - 1,
+        options,
       ) )
-      rendered_highlights.add( highlight_key )
+      rendered_highlight_keys.append( highlight_key )
+
+    neovim_support.BatchSetExtmarks(
+      buffer_number,
+      namespace_id,
+      extmarks
+    )
+    rendered_highlights.update( rendered_highlight_keys )
 
     return missing_property_types
 
@@ -313,26 +306,16 @@ class NeovimSemanticHighlightingRenderer:
       else next_namespace_id
     )
     rendered_highlights: set[ SemanticHighlightKey ] = set()
-    rendered_extmark_ids: list[ int ] = []
-
     try:
       missing_property_types: list[ str ] = self._RenderHighlights(
         buffer_number,
         target_namespace_id,
         highlights,
         preserve_existing,
-        rendered_highlights,
-        rendered_extmark_ids
+        rendered_highlights
       )
     except Exception:
-      if preserve_existing:
-        for extmark_id in rendered_extmark_ids:
-          self._DeleteExtmark(
-            buffer_number,
-            target_namespace_id,
-            extmark_id
-          )
-      else:
+      if not preserve_existing:
         self._ClearNamespace( buffer_number, target_namespace_id )
       raise
 

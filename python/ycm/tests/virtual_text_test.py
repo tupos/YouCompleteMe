@@ -40,6 +40,9 @@ class RecordingVirtualTextRenderer:
     self.render_calls: list[
       tuple[ int, int, int, list[ virtual_text.VirtualTextChunk ] ]
     ] = []
+    self.render_batch_calls: list[
+      tuple[ int, list[ virtual_text.VirtualTextDecoration ] ]
+    ] = []
 
 
   def Initialise( self ) -> bool:
@@ -68,6 +71,13 @@ class RecordingVirtualTextRenderer:
       line_number: int,
       chunks: list[ virtual_text.VirtualTextChunk ] ) -> None:
     raise AssertionError( 'Unexpected end-of-line render' )
+
+
+  def RenderBatch(
+      self,
+      buffer_number: int,
+      decorations: list[ virtual_text.VirtualTextDecoration ] ) -> None:
+    self.render_batch_calls.append( ( buffer_number, decorations ) )
 
 
 class VirtualTextTest( TestCase ):
@@ -163,14 +173,14 @@ class VirtualTextTest( TestCase ):
 
 
   @patch( 'ycm.virtual_text.vimsupport.GetIntValue', return_value = 42 )
-  @patch( 'ycm.virtual_text.vim.eval' )
+  @patch( 'ycm.virtual_text.neovim_support.BatchSetExtmarks' )
   @patch(
     'ycm.virtual_text.vim.buffers',
     { 3: [ '', '', '', '', '', '', 'λx' ] }
   )
   def test_NeovimRenderAtEndOfLineUsesInlineExtmarkAtLineEnd(
       self,
-      vim_eval: MagicMock,
+      batch_set_extmarks: MagicMock,
       get_int_value: MagicMock ) -> None:
     renderer: virtual_text.NeovimVirtualTextRenderer = (
       virtual_text.NeovimVirtualTextRenderer(
@@ -191,13 +201,22 @@ class VirtualTextTest( TestCase ):
     get_int_value.assert_called_once_with(
       "nvim_create_namespace( 'ycm_diagnostic_virtual_text' )"
     )
-    vim_eval.assert_called_once_with(
-      'nvim_buf_set_extmark( 3, '
-      '                      42, '
-      '                      6, '
-      '                      3, '
-      '                      {"virt_text": [["  ", "YcmVirtDiagPadding"], '
-      '["\\u26a0 bad", "YcmVirtDiagError"]], "virt_text_pos": "inline"} )'
+    batch_set_extmarks.assert_called_once_with(
+      3,
+      42,
+      [
+        (
+          6,
+          3,
+          {
+            'virt_text': [
+              ( '  ', 'YcmVirtDiagPadding' ),
+              ( '⚠ bad', 'YcmVirtDiagError' ),
+            ],
+            'virt_text_pos': 'inline',
+          },
+        ),
+      ]
     )
 
 
@@ -237,16 +256,13 @@ class VirtualTextTest( TestCase ):
     self.assertEqual( [ 3 ], first_renderer.clear_calls )
     self.assertEqual( [ 3 ], second_renderer.clear_calls )
     self.assertEqual(
-      [
-        ( 3, 1, 6, [ ( ': first', 'YCM_INLAY_Type' ) ] ),
-        ( 3, 2, 7, [ ( ': retained', 'YCM_INLAY_Type' ) ] ),
-      ],
-      second_renderer.render_calls
+      [ ( 3, [ first, retained ] ) ],
+      second_renderer.render_batch_calls
     )
 
     first_renderer.clear_calls.clear()
     second_renderer.clear_calls.clear()
-    second_renderer.render_calls.clear()
+    second_renderer.render_batch_calls.clear()
 
     renderer.Render(
       3,
@@ -257,6 +273,6 @@ class VirtualTextTest( TestCase ):
     self.assertEqual( [], first_renderer.clear_calls )
     self.assertEqual( [], second_renderer.clear_calls )
     self.assertEqual(
-      [ ( 3, 3, 4, [ ( ': new', 'YCM_INLAY_Type' ) ] ) ],
-      second_renderer.render_calls
+      [ ( 3, [ new ] ) ],
+      second_renderer.render_batch_calls
     )

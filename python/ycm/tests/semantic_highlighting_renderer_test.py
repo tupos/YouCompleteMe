@@ -151,10 +151,15 @@ class SemanticHighlightingRendererTest( TestCase ):
 
   @patch(
     'ycm.semantic_highlighting_renderer.vimsupport.GetIntValue',
-    side_effect = [ 10, 11, 101, 102, 103 ]
+    side_effect = [ 10, 11 ]
+  )
+  @patch(
+    'ycm.semantic_highlighting_renderer.neovim_support.BatchSetExtmarks',
+    side_effect = [ [ 101, 102 ], [ 103 ] ]
   )
   def test_NeovimScrollAddsOnlyPreviouslyUnseenHighlights(
       self,
+      batch_set_extmarks: MagicMock,
       get_int_value: MagicMock ) -> None:
     renderer = (
       semantic_highlighting_renderer.NeovimSemanticHighlightingRenderer(
@@ -187,7 +192,7 @@ class SemanticHighlightingRendererTest( TestCase ):
         ],
         False
       )
-      get_int_value.reset_mock()
+      batch_set_extmarks.reset_mock()
       clear_namespace.reset_mock()
 
       renderer.Render(
@@ -199,8 +204,20 @@ class SemanticHighlightingRendererTest( TestCase ):
         True
       )
 
-    self.assertEqual( 1, get_int_value.call_count )
-    extmark_call: str = get_int_value.call_args.args[ 0 ]
-    self.assertIn( '                      11, ', extmark_call )
-    self.assertIn( '                      2, ', extmark_call )
+    batch_set_extmarks.assert_called_once_with(
+      1,
+      11,
+      [
+        (
+          2,
+          0,
+          {
+            'end_row': 2,
+            'end_col': 3,
+            'hl_group': 'YCM_HL_variable',
+            'priority': 125,
+          },
+        ),
+      ]
+    )
     clear_namespace.assert_not_called()

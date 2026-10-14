@@ -12,6 +12,30 @@ execute 'source ' . fnameescape(
       \ expand( '<sfile>:p:h:h' ) . '/shared/semantic_highlighting.vim' )
 
 
+py3 << EOF
+import vim
+
+from ycm import neovim_support
+
+
+def YcmTestBatchSetExtmarksRollsBack(
+    buffer_number: int,
+    namespace_id: int ) -> bool:
+  try:
+    neovim_support.BatchSetExtmarks(
+      buffer_number,
+      namespace_id,
+      [
+        ( 0, 0, {} ),
+        ( 2, 0, {} ),
+      ]
+    )
+  except vim.error:
+    return True
+  return False
+EOF
+
+
 function! YcmTest_GetRenderedSemanticHighlights(
       \ buffer_number ) abort
   let highlights = []
@@ -80,4 +104,19 @@ function! YcmTest_UnrelatedDecorationExists(
         \ s:unrelated_namespace,
         \ a:decoration_id,
         \ {} ) )
+endfunction
+
+
+function! Test_NeovimExtmarkBatchRollsBackOnFailure() abort
+  new
+  let namespace_id = nvim_create_namespace( 'ycm_test_batch_rollback' )
+
+  call assert_true(
+        \ py3eval(
+        \   'YcmTestBatchSetExtmarksRollsBack('
+        \ . '  int( vim.eval( "bufnr()" ) ), '
+        \ . '  int( vim.eval( "namespace_id" ) ) )' ) )
+  call assert_equal(
+        \ [],
+        \ nvim_buf_get_extmarks( bufnr(), namespace_id, 0, -1, {} ) )
 endfunction
