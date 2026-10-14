@@ -150,11 +150,11 @@ endfunction
 
 
 function! s:ReceiveMessages( timer_id )
-  let poll_again = py3eval( 'ycm_state.OnPeriodicTick()' )
+  let tick_result = py3eval( 'ycm_state.OnPeriodicTick()' )
 
-  call s:UpdateWorkDoneProgress()
+  call s:ApplyWorkDoneProgress( tick_result.work_done_progress )
 
-  if poll_again
+  if tick_result.poll_again
     let s:pollers.receive_messages.id = timer_start(
           \ s:pollers.receive_messages.wait_milliseconds,
           \ function( 's:ReceiveMessages' ) )
@@ -199,12 +199,11 @@ function! s:TickWorkDoneProgress( timer_id ) abort
 endfunction
 
 
-function! s:UpdateWorkDoneProgress() abort
-  let progress = py3eval( 'ycm_state.GetWorkDoneProgress()' )
+function! s:ApplyWorkDoneProgress( progress ) abort
   let was_empty = empty( s:work_done_progress )
-  let s:work_done_progress = progress
+  let s:work_done_progress = a:progress
 
-  if empty( progress )
+  if empty( a:progress )
     call s:StopPoller( s:pollers.work_done_progress )
     let s:work_done_progress_spinner = 0
   elseif s:pollers.work_done_progress.id < 0
@@ -217,6 +216,12 @@ function! s:UpdateWorkDoneProgress() abort
   endif
 
   call s:SetWorkDoneProgressStatus()
+endfunction
+
+
+function! s:UpdateWorkDoneProgress() abort
+  call s:ApplyWorkDoneProgress(
+        \ py3eval( 'ycm_state.GetWorkDoneProgress()' ) )
 endfunction
 
 

@@ -713,20 +713,37 @@ class YouCompleteMe:
     self.RegisterMessagePolls( buffer_numbers )
 
 
-  def OnPeriodicTick( self ) -> bool:
+  def OnPeriodicTick( self ) -> dict[ str, object ]:
+    poll_again = False
+    messages_consumed = False
+
     if not self.IsServerAlive():
       # Server has died. We'll reset when the server is started again.
       self._work_done_progress.Clear()
-      return False
     elif not self.IsServerReady():
       # Try again in a jiffy
-      return True
+      poll_again = True
+    else:
+      for filetype, message_poll in self._message_poll_requests.items():
+        if message_poll is None:
+          continue
 
-    for filetype, message_poll in self._message_poll_requests.items():
-      if message_poll and not message_poll.Poll( self ):
-        self._message_poll_requests[ filetype ] = None
+        request_poll_again, request_messages_consumed = message_poll.Poll(
+          self
+        )
+        messages_consumed = (
+          messages_consumed or request_messages_consumed
+        )
+        if not request_poll_again:
+          self._message_poll_requests[ filetype ] = None
 
-    return any( self._message_poll_requests.values() )
+      poll_again = any( self._message_poll_requests.values() )
+
+    return {
+      'poll_again': poll_again,
+      'work_done_progress': self._work_done_progress.Items(),
+      'messages_consumed': messages_consumed,
+    }
 
 
   def OnFileReadyToParse( self ):

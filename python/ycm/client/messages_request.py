@@ -59,33 +59,37 @@ class MessagesPoll( BaseRequest ):
     return
 
 
-  def Poll( self, message_handler: MessageHandler ) -> bool:
+  def Poll(
+      self,
+      message_handler: MessageHandler
+  ) -> tuple[ bool, bool ]:
     """This should be called regularly to check for new messages in this buffer.
-    Returns True if Poll should be called again in a while. Returns False when
-    the completer or server indicated that further polling should not be done
-    for the requested file."""
+    Returns whether Poll should be called again and whether messages were
+    consumed."""
 
     if self._response_future is None:
       # First poll
       self._SendRequest()
-      return True
+      return ( True, False )
 
     if not self._response_future.done():
       # Nothing yet...
-      return True
+      return ( True, False )
 
     response = self.HandleFuture( self._response_future,
                                   display_message = False )
     if response is None:
       # Server returned an exception.
-      return False
+      return ( False, False )
 
     poll_again = _HandlePollResponse( response, message_handler )
     if poll_again:
       self._SendRequest()
-      return True
 
-    return False
+    return (
+      poll_again,
+      isinstance( response, list ) and bool( response )
+    )
 
 
 def _HandlePollResponse( response: object,
