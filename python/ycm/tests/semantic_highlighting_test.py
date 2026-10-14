@@ -52,6 +52,26 @@ class RecordingRenderer:
 
 class SemanticHighlightingTest( TestCase ):
 
+  def test_ClearCancelsRequestAndRemovesHighlights( self ) -> None:
+    renderer = RecordingRenderer()
+    highlighter = semantic_highlighting.SemanticHighlighting(
+      4,
+      RequestOperationManager( MagicMock() ),
+      renderer
+    )
+    request: MagicMock = MagicMock()
+    highlighter._request = request
+
+    highlighter.Clear()
+
+    request.Reset.assert_called_once_with()
+    self.assertIsNone( highlighter._request )
+    self.assertEqual(
+      [ ( 4, [], False ) ],
+      renderer.rendered
+    )
+
+
   def test_DrawUsesReportedCoverageInsteadOfSparseTokenBounds( self ) -> None:
     renderer = RecordingRenderer()
     highlighter = semantic_highlighting.SemanticHighlighting(

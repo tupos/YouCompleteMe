@@ -41,6 +41,10 @@ from ycm.client.command_request import ( CommandRequest,
                                          SendCommandRequestAsync,
                                          GetCommandResponse,
                                          GetRawCommandResponse )
+from ycm.client.language_server_state_request import (
+  LanguageServerStateRequest,
+  SendLanguageServerStateRequestAsync,
+)
 from ycm.client.completion_request import CompletionRequest
 from ycm.client.resolve_completion_request import ResolveCompletionItem
 from ycm.client.signature_help_request import ( SignatureHelpRequest,
@@ -198,7 +202,10 @@ class YouCompleteMe:
     self._latest_completion_request = None
     self._latest_signature_help_request = None
     self._signature_help_available_requests = SigHelpAvailableByFileType()
-    self._command_requests: dict[ int, CommandRequest ] = {}
+    self._command_requests: dict[
+      int,
+      CommandRequest | LanguageServerStateRequest
+    ] = {}
     self._next_command_request_id: int = 0
     self._user_options = base.GetUserOptions( self._default_options )
     self._omnicomp = OmniCompleter( self._user_options )
@@ -570,7 +577,7 @@ class YouCompleteMe:
   def GetCommandRequest(
       self,
       request_id: int
-  ) -> CommandRequest | None:
+  ) -> CommandRequest | LanguageServerStateRequest | None:
     return self._command_requests.get( request_id )
 
 
@@ -578,6 +585,26 @@ class YouCompleteMe:
     request = self._command_requests.pop( request_id, None )
     if request is not None:
       request.Cancel()
+
+
+  def SendLanguageServerStateRequestAsync(
+      self,
+      enabled: bool,
+      filetype: str | None
+  ) -> int:
+    request_id = self._next_command_request_id
+    self._next_command_request_id += 1
+    self._command_requests[ request_id ] = (
+      SendLanguageServerStateRequestAsync(
+        enabled,
+        filetype,
+        lambda response: self._HandleLanguageServerStateResponse(
+          enabled,
+          response
+        )
+      )
+    )
+    return request_id
 
 
   def GetDefinedSubcommands( self ):
@@ -868,6 +895,50 @@ class YouCompleteMe:
     if isinstance( response, dict ):
       self.ClearWorkDoneProgress(
         response.get( 'work_done_progress_cleanup' ) )
+
+
+  def _HandleLanguageServerStateResponse(
+      self,
+      enabled: bool,
+      response: object
+  ) -> None:
+    if not isinstance( response, dict ):
+      return
+
+    progress_cleanups = response.get( 'work_done_progress_cleanups' )
+    if isinstance( progress_cleanups, list ):
+      for cleanup in progress_cleanups:
+        self.ClearWorkDoneProgress( cleanup )
+
+    if enabled:
+      return
+
+    response_filetypes = response.get( 'filetypes' )
+    if response_filetypes is None:
+      filetypes: list[ str ] | None = None
+    elif isinstance( response_filetypes, list ):
+      filetypes = [
+        filetype
+        for filetype in response_filetypes
+        if isinstance( filetype, str )
+      ]
+    else:
+      return
+
+    filetype_set = set( filetypes ) if filetypes is not None else None
+    for buffer_number, buffer in self._buffers.items():
+      if not vimsupport.BufferExists( buffer_number ):
+        continue
+      if (
+        filetype_set is not None and
+        filetype_set.isdisjoint( buffer.Filetypes() )
+      ):
+        continue
+
+      buffer.ClearDiagnosticsUI()
+      buffer.semantic_highlighting.Clear()
+      buffer.inlay_hints.Cancel()
+      buffer.inlay_hints.Clear()
 
 
   def GetWorkDoneProgress( self ):

@@ -278,6 +278,53 @@ class YouCompleteMeTest( TestCase ):
     second_buffer.ClearDiagnosticsUI.assert_called_once_with()
 
 
+  @YouCompleteMeInstance()
+  @patch(
+    'ycm.youcompleteme.vimsupport.BufferExists',
+    return_value = True
+  )
+  def test_YouCompleteMe_DisableLanguageServerClearsAffectedBuffers(
+      self,
+      ycm: YouCompleteMe,
+      buffer_exists: MagicMock
+  ) -> None:
+    cpp_buffer: MagicMock = MagicMock()
+    cpp_buffer.Filetypes.return_value = [ 'cpp' ]
+    rust_buffer: MagicMock = MagicMock()
+    rust_buffer.Filetypes.return_value = [ 'rust' ]
+    ycm._buffers = {
+      1: cpp_buffer,
+      2: rust_buffer,
+    }
+    cleanup: dict[ str, object ] = {
+      'server': 'clangd',
+      'connection_generation': 7,
+    }
+
+    with patch.object(
+        ycm,
+        'ClearWorkDoneProgress'
+    ) as clear_work_done_progress:
+      ycm._HandleLanguageServerStateResponse(
+        False,
+        {
+          'enabled': False,
+          'filetypes': [ 'c', 'cpp' ],
+          'work_done_progress_cleanups': [ cleanup ],
+        }
+      )
+
+    clear_work_done_progress.assert_called_once_with( cleanup )
+    cpp_buffer.ClearDiagnosticsUI.assert_called_once_with()
+    cpp_buffer.semantic_highlighting.Clear.assert_called_once_with()
+    cpp_buffer.inlay_hints.Cancel.assert_called_once_with()
+    cpp_buffer.inlay_hints.Clear.assert_called_once_with()
+    rust_buffer.ClearDiagnosticsUI.assert_not_called()
+    rust_buffer.semantic_highlighting.Clear.assert_not_called()
+    rust_buffer.inlay_hints.Cancel.assert_not_called()
+    rust_buffer.inlay_hints.Clear.assert_not_called()
+
+
   @patch( 'ycm.vimsupport.PostVimMessage' )
   def test_YouCompleteMe_InvalidPythonInterpreterPath( self, post_vim_message ):
     with UserOptions( {

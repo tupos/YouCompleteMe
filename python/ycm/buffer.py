@@ -158,6 +158,10 @@ class Buffer:
     self._async_diags = False
 
 
+  def Filetypes( self ) -> list[ str ]:
+    return list( self._filetypes )
+
+
   def _ChangedTick( self ):
     return vimsupport.GetBufferChangedTick( self._number )
 

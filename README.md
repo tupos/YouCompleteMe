@@ -2014,6 +2014,44 @@ Commands
 If the [ycmd completion server][ycmd] suddenly stops for some reason, you can
 restart it with this command.
 
+### The `:YcmDisableLanguageServer [filetype]` command
+
+This command temporarily disables one or all Language Server Protocol servers.
+It stops affected running servers and prevents them from being started again
+when files are opened.
+
+With no argument, all language servers are disabled:
+
+```viml
+:YcmDisableLanguageServer
+```
+
+Pass a Vim filetype to disable only its language server:
+
+```viml
+:YcmDisableLanguageServer rust
+```
+
+Filetypes which share a language server are controlled together. For example,
+the C-family filetypes share one clangd server, so targeting `cpp` also affects
+the other C-family filetypes.
+
+The temporary state is discarded by `:YcmRestartServer`; the restarted ycmd
+server uses the configuration from your vimrc.
+
+
+### The `:YcmEnableLanguageServer [filetype]` command
+
+This command reverses `:YcmDisableLanguageServer`. With no argument, it enables
+all language servers. With a filetype argument, it enables only the language
+server for that filetype. An enabled server starts when a relevant file is
+parsed.
+
+This command does not override
+`g:ycm_filetype_specific_completion_to_disable`; filetypes disabled by that
+option remain disabled.
+
+
 ### The `:YcmForceCompileAndDiagnostics` command
 
 Calling this command will force YCM to immediately recompile your file

@@ -111,6 +111,11 @@ class SemanticHighlighting( sr.ScrollingBufferRange ):
     )
 
 
+  def Clear( self ) -> None:
+    self.Cancel()
+    self._renderer.Render( self._bufnr, [], False )
+
+
   def _Draw( self ) -> None:
     # We requested a snapshot
     tokens = self._latest_response.get( 'tokens', [] )

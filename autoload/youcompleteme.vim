@@ -1591,6 +1591,10 @@ endfunction
 
 function! s:SetUpCommands()
   command! YcmRestartServer call s:RestartServer()
+  command! -nargs=? -complete=filetype YcmDisableLanguageServer
+        \ call s:SetLanguageServerEnabled( 0, <q-args> )
+  command! -nargs=? -complete=filetype YcmEnableLanguageServer
+        \ call s:SetLanguageServerEnabled( 1, <q-args> )
   command! YcmDebugInfo call s:DebugInfo()
   command! -nargs=* -complete=custom,youcompleteme#LogsComplete -count=0
         \ YcmToggleLogs call s:ToggleLogs( <f-count>,
@@ -1626,6 +1630,46 @@ function! s:RestartServer()
   let s:pollers.server_ready.id = timer_start(
         \ s:pollers.server_ready.wait_milliseconds,
         \ function( 's:PollServerReady' ) )
+endfunction
+
+
+function! s:SetLanguageServerEnabled( enabled, filetype ) abort
+  let request_id = py3eval(
+        \ 'ycm_state.SendLanguageServerStateRequestAsync( '
+        \ . 'vimsupport.GetBoolValue( "a:enabled" ), '
+        \ . 'vim.eval( "a:filetype" ) or None )' )
+  call s:RegisterCommandRequest(
+        \ request_id,
+        \ 'Response',
+        \ function(
+        \   's:OnLanguageServerStateChanged',
+        \   [ a:enabled, bufnr( '%' ), a:filetype ] ),
+        \ 'language_server_state' )
+endfunction
+
+
+function! s:OnLanguageServerStateChanged(
+      \ enabled,
+      \ buffer_number,
+      \ filetype,
+      \ response ) abort
+  if type( a:response ) != v:t_dict
+    return
+  endif
+
+  let affects_current_buffer =
+        \ empty( a:filetype ) ||
+        \ index( split( &filetype, '\.' ), a:filetype ) >= 0
+  if bufnr( '%' ) != a:buffer_number || !affects_current_buffer
+    return
+  endif
+
+  if !a:enabled
+    call s:ClearDocumentHighlights()
+    call s:ClearSignatureHelp()
+  elseif s:AllowedToCompleteInCurrentBuffer()
+    call s:OnFileReadyToParse( 1 )
+  endif
 endfunction
 
 
@@ -1669,19 +1713,33 @@ function! youcompleteme#GetCommandResponse( ... ) abort
 endfunction
 
 
-function! s:GetCommandResponseAsyncImpl( callback, origin, ... ) abort
-  let request_id = py3eval(
-        \ 'ycm_state.SendCommandRequestAsync( vim.eval( "a:000" ) )' )
-
-  let s:pollers.command.requests[ request_id ] = {
-        \ 'response_func': 'StringResponse',
+function! s:RegisterCommandRequest(
+      \ request_id,
+      \ response_func,
+      \ callback,
+      \ origin ) abort
+  let s:pollers.command.requests[ a:request_id ] = {
+        \ 'response_func': a:response_func,
         \ 'origin': a:origin,
         \ 'callback': a:callback
         \ }
   if s:pollers.command.id == -1
-    let s:pollers.command.id = timer_start( s:pollers.command.wait_milliseconds,
-                                          \ function( 's:PollCommands' ) )
+    let s:pollers.command.id = timer_start(
+          \ s:pollers.command.wait_milliseconds,
+          \ function( 's:PollCommands' ) )
   endif
+endfunction
+
+
+function! s:GetCommandResponseAsyncImpl( callback, origin, ... ) abort
+  let request_id = py3eval(
+        \ 'ycm_state.SendCommandRequestAsync( vim.eval( "a:000" ) )' )
+
+  call s:RegisterCommandRequest(
+        \ request_id,
+        \ 'StringResponse',
+        \ a:callback,
+        \ a:origin )
 endfunction
 
 

@@ -111,3 +111,18 @@ function! Test_GetDefinedSubcommands_NoNative()
   " The above call prints ValueError: No semantic completer ...."
   messages clear
 endfunction
+
+
+function! Test_LanguageServerStateCommands()
+  YcmDisableLanguageServer
+  call youcompleteme#test#commands#CheckNoCommandRequest()
+
+  YcmEnableLanguageServer
+  call youcompleteme#test#commands#CheckNoCommandRequest()
+
+  YcmDisableLanguageServer cpp
+  call youcompleteme#test#commands#CheckNoCommandRequest()
+
+  YcmEnableLanguageServer cpp
+  call youcompleteme#test#commands#CheckNoCommandRequest()
+endfunction
