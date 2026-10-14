@@ -45,9 +45,9 @@ class MessageHandler( Protocol ):
 
 
 class MessagesPoll( BaseRequest ):
-  def __init__( self, buff ):
-    super( MessagesPoll, self ).__init__()
-    self._request_data = BuildRequestData( buff.number )
+  def __init__( self, buffer_number: int ) -> None:
+    super().__init__()
+    self._request_data = BuildRequestData( buffer_number )
     self._response_future = None
 
 

@@ -68,12 +68,13 @@ def MockAsyncServerResponseDone( response ):
   with MockVimBuffers( [ current_buffer ], [ current_buffer ], ( 1, 1 ) ) as v:
     mock_response = MockAsyncServerResponseDone( response )
     with patch.dict( ycm._message_poll_requests, {} ):
-      ycm._message_poll_requests[ filetype ] = MessagesPoll( v.current.buffer )
+      ycm._message_poll_requests[ filetype ] = MessagesPoll(
+        v.current.buffer.number )
       ycm._message_poll_requests[ filetype ]._response_future = mock_response
       # Needed to keep a reference to the mocked dictionary
       mock_future = ycm._message_poll_requests[ filetype ]._response_future
       # Uses ycm._message_poll_requests[ filetype ] ...
-      ycm.OnPeriodicTick( True )
+      ycm.OnPeriodicTick()
   """
   return mock.MagicMock( wraps = FakeFuture( True, response ) )
 
@@ -85,12 +86,13 @@ def MockAsyncServerResponseInProgress():
   with MockVimBuffers( [ current_buffer ], [ current_buffer ], ( 1, 1 ) ) as v:
     mock_response = MockAsyncServerResponseInProgress()
     with patch.dict( ycm._message_poll_requests, {} ):
-      ycm._message_poll_requests[ filetype ] = MessagesPoll( v.current.buffer )
+      ycm._message_poll_requests[ filetype ] = MessagesPoll(
+        v.current.buffer.number )
       ycm._message_poll_requests[ filetype ]._response_future = mock_response
       # Needed to keep a reference to the mocked dictionary
       mock_future = ycm._message_poll_requests[ filetype ]._response_future
       # Uses ycm._message_poll_requests[ filetype ] ...
-      ycm.OnPeriodicTick( True )
+      ycm.OnPeriodicTick()
   """
   return mock.MagicMock( wraps = FakeFuture( False ) )
 
@@ -102,12 +104,13 @@ def MockAsyncServerResponseException( exception ):
   with MockVimBuffers( [ current_buffer ], [ current_buffer ], ( 1, 1 ) ) as v:
     mock_response = MockAsyncServerResponseException( exception )
     with patch.dict( ycm._message_poll_requests, {} ):
-      ycm._message_poll_requests[ filetype ] = MessagesPoll( v.current.buffer )
+      ycm._message_poll_requests[ filetype ] = MessagesPoll(
+        v.current.buffer.number )
       ycm._message_poll_requests[ filetype ]._response_future = mock_response
       # Needed to keep a reference to the mocked dictionary
       mock_future = ycm._message_poll_requests[ filetype ]._response_future
       # Uses ycm._message_poll_requests[ filetype ] ...
-      ycm.OnPeriodicTick( True )
+      ycm.OnPeriodicTick()
   """
   return mock.MagicMock( wraps = FakeFuture( True, None, exception ) )
 

@@ -20,13 +20,30 @@ MockVimModule()
 
 from hamcrest import assert_that, equal_to
 from unittest import TestCase
-from unittest.mock import patch, call
+from unittest.mock import MagicMock, patch, call
 
-from ycm.client.messages_request import _HandlePollResponse
+from ycm.client.messages_request import MessagesPoll, _HandlePollResponse
 from ycm.tests.test_utils import ExtendedMock
 
 
 class MessagesRequestTest( TestCase ):
+  @patch(
+    'ycm.client.messages_request.BuildRequestData',
+    return_value = { 'filetypes': [ 'rust' ] }
+  )
+  def test_MessagesPoll_BuildsRequestFromBufferNumber(
+      self,
+      build_request_data: MagicMock
+  ) -> None:
+    request = MessagesPoll( 7 )
+
+    build_request_data.assert_called_once_with( 7 )
+    self.assertEqual(
+      { 'filetypes': [ 'rust' ] },
+      request._request_data
+    )
+
+
   def test_HandlePollResponse_NoMessages( self ):
     assert_that( _HandlePollResponse( True, None ), equal_to( True ) )
 

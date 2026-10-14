@@ -125,26 +125,41 @@ function! s:StartMessagePoll()
 endfunction
 
 
-function! s:ReceiveMessages( timer_id )
-  let create_new_message_polls = s:AllowedToCompleteInCurrentBuffer()
-  let has_work_done_progress = !empty( s:work_done_progress )
-  let poll_again = v:false
+function! s:RegisterMessagePoll( buffer_number ) abort
+  py3 ycm_state.RegisterMessagePoll(
+        \ vimsupport.GetIntValue( 'a:buffer_number' ) )
+  call s:StartMessagePoll()
+endfunction
 
-  if create_new_message_polls || has_work_done_progress
-    let poll_again = py3eval(
-          \ 'ycm_state.OnPeriodicTick( '
-          \ . 'vimsupport.GetBoolValue( "create_new_message_polls" ) )' )
+
+function! s:RegisterMessagePollsForVisibleBuffers( rebuild ) abort
+  let visible_buffer_numbers = map( getwininfo(), 'v:val.bufnr' )
+  if a:rebuild
+    py3 ycm_state.RebuildMessagePolls(
+          \ list( map(
+          \   int,
+          \   vim.eval( 'visible_buffer_numbers' ) ) ) )
+  else
+    py3 ycm_state.RegisterMessagePolls(
+          \ list( map(
+          \   int,
+          \   vim.eval( 'visible_buffer_numbers' ) ) ) )
   endif
+  call s:StartMessagePoll()
+endfunction
+
+
+function! s:ReceiveMessages( timer_id )
+  let poll_again = py3eval( 'ycm_state.OnPeriodicTick()' )
 
   call s:UpdateWorkDoneProgress()
 
-  if poll_again &&
-        \ ( create_new_message_polls || !empty( s:work_done_progress ) )
+  if poll_again
     let s:pollers.receive_messages.id = timer_start(
           \ s:pollers.receive_messages.wait_milliseconds,
           \ function( 's:ReceiveMessages' ) )
   else
-    " Don't poll again until we open another buffer or display new progress.
+    " Don't poll again until an editor event registers another filetype.
     let s:pollers.receive_messages.id = -1
   endif
 endfunction
@@ -295,6 +310,9 @@ function! youcompleteme#Enable()
           \ str2nr( expand( '<abuf>' ) ) )
     autocmd BufWritePost,FileWritePost * call s:OnFileSave(
           \ str2nr( expand( '<abuf>' ) ) )
+    autocmd BufEnter,BufWinEnter,FileType *
+          \ call s:RegisterMessagePoll(
+          \   str2nr( expand( '<abuf>' ) ) )
     autocmd FileType * call s:OnFileTypeSet()
     autocmd BufEnter,CmdwinEnter,WinEnter * call s:OnBufferEnter()
     autocmd BufUnload * call s:OnBufferUnload()
@@ -871,7 +889,6 @@ function! s:OnFileTypeSet()
 
   call s:SetUpCompleteopt()
   call s:EnableCompletingInCurrentBuffer()
-  call s:StartMessagePoll()
   call s:EnableAutoHover()
 
   py3 ycm_state.OnFileTypeSet()
@@ -915,7 +932,6 @@ endfunction
 function! s:OnBufferEnter()
   call s:ClearDocumentHighlights()
 
-  call s:StartMessagePoll()
   if !s:VisitedBufferRequiresReparse()
     return
   endif
@@ -959,6 +975,7 @@ function! s:PollServerReady( timer_id )
     return
   endif
 
+  call s:RegisterMessagePollsForVisibleBuffers( 1 )
   call s:OnFileTypeSet()
 endfunction
 
@@ -1655,6 +1672,10 @@ function! s:OnLanguageServerStateChanged(
       \ response ) abort
   if type( a:response ) != v:t_dict
     return
+  endif
+
+  if a:enabled
+    call s:RegisterMessagePollsForVisibleBuffers( 0 )
   endif
 
   let affects_current_buffer =
