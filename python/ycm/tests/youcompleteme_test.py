@@ -325,6 +325,26 @@ class YouCompleteMeTest( TestCase ):
     rust_buffer.inlay_hints.Clear.assert_not_called()
 
 
+  @YouCompleteMeInstance()
+  @patch( 'ycm.youcompleteme.SendEventNotificationAsync' )
+  def test_YouCompleteMe_OnBufferUnloadCancelsScrollingRequests(
+      self,
+      ycm: YouCompleteMe,
+      send_event_notification_async: MagicMock
+  ) -> None:
+    buffer: MagicMock = MagicMock()
+    ycm._buffers = { 7: buffer }
+
+    ycm.OnBufferUnload( 7 )
+
+    buffer.semantic_highlighting.Cancel.assert_called_once_with()
+    buffer.inlay_hints.Cancel.assert_called_once_with()
+    send_event_notification_async.assert_called_once_with(
+      'BufferUnload',
+      7
+    )
+
+
   @patch( 'ycm.vimsupport.PostVimMessage' )
   def test_YouCompleteMe_InvalidPythonInterpreterPath( self, post_vim_message ):
     with UserOptions( {

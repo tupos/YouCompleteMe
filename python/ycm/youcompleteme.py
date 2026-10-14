@@ -766,7 +766,12 @@ class YouCompleteMe:
     SendEventNotificationAsync( 'FileSave', saved_buffer_number )
 
 
-  def OnBufferUnload( self, deleted_buffer_number ):
+  def OnBufferUnload( self, deleted_buffer_number: int ) -> None:
+    buffer = self._buffers.get( deleted_buffer_number )
+    if buffer is not None:
+      buffer.semantic_highlighting.Cancel()
+      buffer.inlay_hints.Cancel()
+
     SendEventNotificationAsync( 'BufferUnload', deleted_buffer_number )
 
 

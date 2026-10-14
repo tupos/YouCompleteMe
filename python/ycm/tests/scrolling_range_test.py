@@ -35,6 +35,8 @@ class PendingRequest:
   def __init__( self ) -> None:
     self.started: bool = False
     self.was_reset: bool = False
+    self.done: bool = False
+    self.response: object | None = None
 
 
   def Start( self ) -> None:
@@ -42,11 +44,22 @@ class PendingRequest:
 
 
   def Done( self ) -> bool:
-    return False
+    return self.done
+
+
+  def Response( self ) -> object:
+    assert self.done
+    assert self.response is not None
+    return self.response
 
 
   def Reset( self ) -> None:
     self.was_reset = True
+
+
+  def Complete( self, response: object ) -> None:
+    self.response = response
+    self.done = True
 
 
 class ScrollingBufferRangeForTest( scrolling_range.ScrollingBufferRange ):
@@ -67,6 +80,7 @@ class TrackingScrollingBufferRange( scrolling_range.ScrollingBufferRange ):
   def __init__( self, bufnr: int ) -> None:
     super().__init__( bufnr )
     self.requests: list[ PendingRequest ] = []
+    self.drawn_responses: list[ object ] = []
 
 
   def _NewRequest(
@@ -79,7 +93,7 @@ class TrackingScrollingBufferRange( scrolling_range.ScrollingBufferRange ):
 
 
   def _Draw( self ) -> None:
-    pass
+    self.drawn_responses.append( self._latest_response )
 
 
 class ScrollingBufferRangeTest( TestCase ):
@@ -238,3 +252,58 @@ class ScrollingBufferRangeTest( TestCase ):
           expected,
           scrollable.PreserveRenderedSnapshot()
         )
+
+
+  @patch(
+    'ycm.scrolling_range.vimsupport.RangeVisibleInBuffer',
+    return_value = {
+      'start': {
+        'line_num': 80,
+        'column_num': 1,
+      },
+      'end': {
+        'line_num': 120,
+        'column_num': 1,
+      },
+    }
+  )
+  @patch(
+    'ycm.scrolling_range.vimsupport.GetBufferChangedTick',
+    return_value = 2
+  )
+  def test_UpdateDiscardsStaleResponseAndRendersReplacement(
+      self,
+      get_buffer_changed_tick: object,
+      range_visible_in_buffer: object ) -> None:
+    scrollable = TrackingScrollingBufferRange( 1 )
+    stale_request = PendingRequest()
+    stale_request.Start()
+    stale_request.Complete( { 'viewport': 'stale' } )
+    scrollable._request = stale_request
+    scrollable._tick = 1
+
+    self.assertFalse( scrollable.Update() )
+    self.assertEqual( [], scrollable.drawn_responses )
+    self.assertEqual( 1, len( scrollable.requests ) )
+    self.assertEqual(
+      {
+        'start': {
+          'line_num': 80,
+          'column_num': 1,
+        },
+        'end': {
+          'line_num': 120,
+          'column_num': 1,
+        },
+      },
+      scrollable._last_requested_range
+    )
+
+    replacement_request = scrollable.requests[ 0 ]
+    replacement_request.Complete( { 'viewport': 'final' } )
+
+    self.assertTrue( scrollable.Update() )
+    self.assertEqual(
+      [ { 'viewport': 'final' } ],
+      scrollable.drawn_responses
+    )

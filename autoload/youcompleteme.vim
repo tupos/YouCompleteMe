@@ -83,12 +83,20 @@ let s:pollers = {
       \   'semantic_highlighting': {
       \     'id': -1,
       \     'wait_milliseconds': 100,
+      \     'buffer_numbers': {},
       \   },
       \   'inlay_hints': {
       \     'id': -1,
       \     'wait_milliseconds': 100,
+      \     'buffer_numbers': {},
+      \   },
+      \   'scrolling_requests': {
+      \     'id': -1,
+      \     'wait_milliseconds': 50,
+      \     'buffer_numbers': {},
       \   },
       \ }
+let s:scrollables = [ 'semantic_highlighting', 'inlay_hints' ]
 let s:buftype_blacklist = {
       \   'help': 1,
       \   'terminal': 1,
@@ -958,6 +966,8 @@ function! s:OnBufferUnload()
   " Expanding <abuf> returns the unloaded buffer number as a string but we want
   " it as a true number for the getbufvar function.
   let buffer_number = str2nr( expand( '<abuf>' ) )
+  call s:ForgetScrollingBuffer( buffer_number )
+
   if !s:AllowedToCompleteInBuffer( buffer_number )
     return
   endif
@@ -1067,20 +1077,62 @@ function s:ShouldUseSemanticHighlightingNow( bufnr )
         \   get( g:, 'ycm_enable_semantic_highlighting', 0 ) )
 endfunction
 
-function! s:UpdateSemanticHighlighting( bufnr, force, redraw_anyway ) abort
-  call s:StopPoller( s:pollers.semantic_highlighting )
 
-  if s:ShouldUseSemanticHighlightingNow( a:bufnr )
+function! s:RemoveBufferFromScrollablePoller(
+      \ scrollable,
+      \ buffer_number ) abort
+  let poller = s:pollers[ a:scrollable ]
+  let buffer_key = string( a:buffer_number )
+  if has_key( poller.buffer_numbers, buffer_key )
+    call remove( poller.buffer_numbers, buffer_key )
+  endif
+
+  if empty( poller.buffer_numbers )
+    call s:StopPoller( poller )
+  endif
+endfunction
+
+
+function! s:StartScrollablePoller( scrollable ) abort
+  let poller = s:pollers[ a:scrollable ]
+  if poller.id >= 0 || empty( poller.buffer_numbers )
+    return
+  endif
+
+  let poller.id = timer_start(
+        \ poller.wait_milliseconds,
+        \ function( 's:PollScrollable', [ a:scrollable ] ) )
+endfunction
+
+
+function! s:TrackScrollableRequest( scrollable, buffer_number ) abort
+  let poller = s:pollers[ a:scrollable ]
+  let poller.buffer_numbers[ string( a:buffer_number ) ] = 1
+  call s:StartScrollablePoller( a:scrollable )
+endfunction
+
+
+function! s:UpdateSemanticHighlighting(
+      \ buffer_number,
+      \ force,
+      \ redraw_anyway ) abort
+  call s:RemoveBufferFromScrollablePoller(
+        \ 'semantic_highlighting',
+        \ a:buffer_number )
+
+  if s:ShouldUseSemanticHighlightingNow( a:buffer_number )
     if py3eval(
-        \ 'ycm_state.Buffer( int( vim.eval( "a:bufnr" ) ) ).'
+        \ 'ycm_state.Buffer( int( vim.eval( "a:buffer_number" ) ) ).'
         \ . 'semantic_highlighting.Request( '
         \ . '  force=int( vim.eval( "a:force" ) ) )' )
-      let s:pollers.semantic_highlighting.id = timer_start(
-            \ s:pollers.semantic_highlighting.wait_milliseconds,
-            \ function( 's:PollSemanticHighlighting', [ a:bufnr ] ) )
+      call s:TrackScrollableRequest(
+            \ 'semantic_highlighting',
+            \ a:buffer_number )
     elseif a:redraw_anyway
       py3 ycm_state.Buffer(
-            \ int( vim.eval( "a:bufnr" ) ) ).semantic_highlighting.Refresh()
+            \ int(
+            \   vim.eval( "a:buffer_number" )
+            \ ) ).semantic_highlighting.Refresh()
     endif
   endif
 endfunction
@@ -1092,20 +1144,26 @@ function s:ShouldUseInlayHintsNow( bufnr )
         \   get( g:, 'ycm_enable_inlay_hints', 0 ) )
 endfunction
 
-function! s:UpdateInlayHints( bufnr, force, redraw_anyway ) abort
-  call s:StopPoller( s:pollers.inlay_hints )
 
-  if s:ShouldUseInlayHintsNow( a:bufnr )
+function! s:UpdateInlayHints(
+      \ buffer_number,
+      \ force,
+      \ redraw_anyway ) abort
+  call s:RemoveBufferFromScrollablePoller(
+        \ 'inlay_hints',
+        \ a:buffer_number )
+
+  if s:ShouldUseInlayHintsNow( a:buffer_number )
     if py3eval(
-        \ 'ycm_state.Buffer( int( vim.eval( "a:bufnr" ) ) ).'
+        \ 'ycm_state.Buffer( int( vim.eval( "a:buffer_number" ) ) ).'
         \ . 'inlay_hints.Request( force=int( vim.eval( "a:force" ) ) )' )
-      let s:pollers.inlay_hints.id = timer_start(
-            \ s:pollers.inlay_hints.wait_milliseconds,
-            \ function( 's:PollInlayHints', [ a:bufnr ] ) )
+      call s:TrackScrollableRequest(
+            \ 'inlay_hints',
+            \ a:buffer_number )
     elseif a:redraw_anyway
-      py3 ycm_state.Buffer( int( vim.eval( "a:bufnr" ) ) ).inlay_hints.Refresh()
+      py3 ycm_state.Buffer(
+            \ int( vim.eval( "a:buffer_number" ) ) ).inlay_hints.Refresh()
     endif
-
   endif
 endfunction
 
@@ -1125,30 +1183,100 @@ function! s:PollFileParseResponse( ... )
 endfunction
 
 
-function! s:PollSemanticHighlighting( bufnr, ... ) abort
-  return s:PollScrollable( a:bufnr, 'semantic_highlighting' )
-endfunction
-
-
-function! s:PollInlayHints( bufnr, ... ) abort
-  return s:PollScrollable( a:bufnr, 'inlay_hints' )
-endfunction
-
-
-function! s:PollScrollable( bufnr, scrollable, ... ) abort
-  if !py3eval(
-      \ 'ycm_state.Buffer( int( vim.eval( "a:bufnr" ) ) )'
-      \ . '.' . a:scrollable . '.Ready()' )
-    let s:pollers[a:scrollable].id = timer_start(
-          \ s:pollers[a:scrollable].wait_milliseconds,
-          \ function( 's:PollScrollable', [ a:bufnr, a:scrollable ] ) )
-  elseif ! py3eval(
-      \ 'ycm_state.Buffer( int( vim.eval( "a:bufnr" ) ) )'
-      \ . '.' . a:scrollable . '.Update()' )
-    let s:pollers[ a:scrollable ].id = timer_start(
-          \ s:pollers[ a:scrollable ].wait_milliseconds,
-          \ function( 's:PollScrollable', [ a:bufnr, a:scrollable ] ) )
+function! s:PollScrollable( scrollable, timer_id ) abort
+  let poller = s:pollers[ a:scrollable ]
+  if a:timer_id != poller.id
+    return
   endif
+
+  let poller.id = -1
+  for buffer_key in keys( copy( poller.buffer_numbers ) )
+    let buffer_number = str2nr( buffer_key )
+    if !bufexists( buffer_number )
+      call remove( poller.buffer_numbers, buffer_key )
+      continue
+    endif
+
+    if !py3eval(
+        \ 'ycm_state.Buffer( int( vim.eval( "buffer_number" ) ) )'
+        \ . '.' . a:scrollable . '.Ready()' )
+      continue
+    endif
+
+    if py3eval(
+        \ 'ycm_state.Buffer( int( vim.eval( "buffer_number" ) ) )'
+        \ . '.' . a:scrollable . '.Update()' )
+      call remove( poller.buffer_numbers, buffer_key )
+    endif
+  endfor
+
+  call s:StartScrollablePoller( a:scrollable )
+endfunction
+
+
+function! s:ForgetScrollingBuffer( buffer_number ) abort
+  let buffer_key = string( a:buffer_number )
+  if has_key( s:pollers.scrolling_requests.buffer_numbers, buffer_key )
+    call remove(
+          \ s:pollers.scrolling_requests.buffer_numbers,
+          \ buffer_key )
+  endif
+
+  if empty( s:pollers.scrolling_requests.buffer_numbers )
+    call s:StopPoller( s:pollers.scrolling_requests )
+  endif
+
+  for scrollable in s:scrollables
+    call s:RemoveBufferFromScrollablePoller(
+          \ scrollable,
+          \ a:buffer_number )
+  endfor
+endfunction
+
+
+function! s:ScheduleScrollingRequests( buffer_number ) abort
+  if a:buffer_number <= 0
+    return
+  endif
+
+  let poller = s:pollers.scrolling_requests
+  let poller.buffer_numbers[ string( a:buffer_number ) ] = 1
+
+  " Do not render a response for the old viewport while scrolling continues.
+  for scrollable in s:scrollables
+    call s:RemoveBufferFromScrollablePoller(
+          \ scrollable,
+          \ a:buffer_number )
+  endfor
+
+  call s:StopPoller( poller )
+  let poller.id = timer_start(
+        \ poller.wait_milliseconds,
+        \ function( 's:RequestAfterScrolling' ) )
+endfunction
+
+
+function! s:RequestAfterScrolling( timer_id ) abort
+  let poller = s:pollers.scrolling_requests
+  if a:timer_id != poller.id
+    return
+  endif
+
+  let poller.id = -1
+  let buffer_numbers = map(
+        \ keys( poller.buffer_numbers ),
+        \ 'str2nr( v:val )' )
+  let poller.buffer_numbers = {}
+
+  for buffer_number in buffer_numbers
+    if !bufexists( buffer_number ) ||
+          \ !s:AllowedToCompleteInBuffer( buffer_number )
+      continue
+    endif
+
+    call s:UpdateSemanticHighlighting( buffer_number, 0, 0 )
+    call s:UpdateInlayHints( buffer_number, 0, 0 )
+  endfor
 endfunction
 
 
@@ -1211,9 +1339,9 @@ function! s:OnWinScrolled()
   if !s:AllowedToCompleteInCurrentBuffer()
     return
   endif
-  let bufnr = winbufnr( expand( '<afile>' ) )
-  call s:UpdateSemanticHighlighting( bufnr, 0, 0 )
-  call s:UpdateInlayHints( bufnr, 0, 0 )
+
+  call s:ScheduleScrollingRequests(
+        \ winbufnr( str2nr( expand( '<afile>' ) ) ) )
 endfunction
 
 
@@ -1993,6 +2121,13 @@ endif
 function! youcompleteme#Test_GetPollers()
   return s:pollers
 endfunction
+
+
+function! youcompleteme#Test_ScheduleScrollingRequests(
+      \ buffer_number ) abort
+  call s:ScheduleScrollingRequests( a:buffer_number )
+endfunction
+
 
 function! youcompleteme#Test_UpdateWorkDoneProgress()
   call s:UpdateWorkDoneProgress()

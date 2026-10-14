@@ -282,6 +282,64 @@ function! Test_SemanticHighlights_CustomTokenTypeUsesDefinedHighlight()
 endfunction
 
 
+function! Test_ScrollingRequestsAreDebouncedPerBuffer() abort
+  new
+  let first_buffer = bufnr()
+  let first_buffer_key = string( first_buffer )
+
+  new
+  let second_buffer = bufnr()
+  let second_buffer_key = string( second_buffer )
+
+  let pollers = youcompleteme#Test_GetPollers()
+  let pollers.semantic_highlighting.buffer_numbers = {}
+  let pollers.semantic_highlighting.buffer_numbers[ first_buffer_key ] = 1
+  let pollers.semantic_highlighting.buffer_numbers[ second_buffer_key ] = 1
+  let pollers.inlay_hints.buffer_numbers = {}
+  let pollers.inlay_hints.buffer_numbers[ first_buffer_key ] = 1
+  let pollers.inlay_hints.buffer_numbers[ second_buffer_key ] = 1
+
+  call youcompleteme#Test_ScheduleScrollingRequests( first_buffer )
+  let first_timer = pollers.scrolling_requests.id
+  let expected_pending_buffers = {}
+  let expected_pending_buffers[ first_buffer_key ] = 1
+  let expected_active_buffers = {}
+  let expected_active_buffers[ second_buffer_key ] = 1
+  call assert_equal(
+        \ expected_pending_buffers,
+        \ pollers.scrolling_requests.buffer_numbers )
+  call assert_equal(
+        \ expected_active_buffers,
+        \ pollers.semantic_highlighting.buffer_numbers )
+  call assert_equal(
+        \ expected_active_buffers,
+        \ pollers.inlay_hints.buffer_numbers )
+
+  sleep 30m
+  call youcompleteme#Test_ScheduleScrollingRequests( second_buffer )
+  let second_timer = pollers.scrolling_requests.id
+  call assert_notequal( first_timer, second_timer )
+  call assert_equal( {}, pollers.semantic_highlighting.buffer_numbers )
+  call assert_equal( {}, pollers.inlay_hints.buffer_numbers )
+
+  sleep 30m
+  let expected_pending_buffers[ second_buffer_key ] = 1
+  call assert_equal( second_timer, pollers.scrolling_requests.id )
+  call assert_equal(
+        \ expected_pending_buffers,
+        \ pollers.scrolling_requests.buffer_numbers )
+
+  " Avoid issuing real feature requests when the debounce timer expires. The
+  " scheduler must still forget both wiped buffers.
+  silent execute 'bwipeout! '
+        \ . first_buffer . ' '
+        \ . second_buffer
+  sleep 100m
+  call assert_equal( -1, pollers.scrolling_requests.id )
+  call assert_equal( {}, pollers.scrolling_requests.buffer_numbers )
+endfunction
+
+
 function! Test_SemanticHighlights_RedrawReplacesOldHighlights()
   if !py3eval( 'YCM_TEST_SEMANTIC_HIGHLIGHTING_SUPPORTED' )
     throw 'Skipped: semantic highlighting is not supported'
