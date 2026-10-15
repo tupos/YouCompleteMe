@@ -30,10 +30,19 @@ get in touch.
 Please do **NOT** go to #vim on Freenode for support. Please contact the
 YouCompleteMe maintainers directly using the [contact details](#contact) below.
 
-# Vundle
+# vim-plug
 
-Please note that the below instructions suggest using Vundle. Currently there
-are problems with Vundle, so here are some [alternative instructions](https://github.com/ycm-core/YouCompleteMe/issues/4134#issuecomment-1446235584) using Vim packages.
+The installation instructions below use vim-plug. Follow the
+[vim-plug installation instructions](https://github.com/junegunn/vim-plug#installation),
+then add YCM to your vim-plug section:
+
+```viml
+call plug#begin()
+Plug 'ycm-core/YouCompleteMe'
+call plug#end()
+```
+
+Restart the editor and run `:PlugInstall`.
 
 Contents
 --------
@@ -275,7 +284,7 @@ downstream compilers, though we do our best to signal where we know them.
 
 #### Quick start, installing all completers
 
-- Install YCM plugin via [Vundle][]
+- Install YCM plugin via [vim-plug][]
 - Install CMake, MacVim and Python 3; Note that the pre-installed *macOS system*
   Vim is not supported (due to it having broken Python integration).
 
@@ -314,7 +323,7 @@ $ sudo ln -sfn $(brew --prefix java)/libexec/openjdk.jdk /Library/Java/JavaVirtu
   - For Intel and arm64 Macs, the bundled libclang/clangd work:
 
     ```
-    cd ~/.vim/bundle/YouCompleteMe
+    cd ~/.vim/plugged/YouCompleteMe
     python3 install.py --all
     ```
 
@@ -323,7 +332,7 @@ $ sudo ln -sfn $(brew --prefix java)/libexec/openjdk.jdk /Library/Java/JavaVirtu
 
     ```
     brew install llvm
-    cd ~/.vim/bundle/YouCompleteMe
+    cd ~/.vim/plugged/YouCompleteMe
     python3 install.py --system-libclang --all
     ```
 
@@ -358,10 +367,10 @@ CMake as well:
 
     brew install macvim cmake
 
-Install YouCompleteMe with [Vundle][].
+Install YouCompleteMe with [vim-plug][].
 
 **Remember:** YCM is a plugin with a compiled component. If you **update** YCM
-using Vundle and the `ycm_core` library APIs have changed (happens
+using vim-plug and the `ycm_core` library APIs have changed (happens
 rarely), YCM will notify you to recompile it. You should then rerun the install
 process.
 
@@ -374,14 +383,14 @@ Compiling YCM **with** semantic support for C-family languages through
 **clangd**:
 
 ```
-cd ~/.vim/bundle/YouCompleteMe
+cd ~/.vim/plugged/YouCompleteMe
 ./install.py --clangd-completer
 ```
 
 Compiling YCM **without** semantic support for C-family languages:
 
 ```
-cd ~/.vim/bundle/YouCompleteMe
+cd ~/.vim/plugged/YouCompleteMe
 ./install.py
 ```
 
@@ -403,7 +412,7 @@ install with all language features, ensure `xbuild`, `go`, `node` and `npm`
 tools are installed and in your `PATH`, then simply run:
 
 ```
-cd ~/.vim/bundle/YouCompleteMe
+cd ~/.vim/plugged/YouCompleteMe
 ./install.py --all
 ```
 
@@ -422,7 +431,7 @@ The following assume you're using Ubuntu 24.04.
 
 #### Quick start, installing all completers
 
-- Install YCM plugin via [Vundle][]
+- Install YCM plugin via [vim-plug][]
 - Install CMake, Vim and Python
 
 ```
@@ -438,7 +447,7 @@ apt install mono-complete golang nodejs openjdk-17-jdk openjdk-17-jre npm
 - Compile YCM
 
 ```
-cd ~/.vim/bundle/YouCompleteMe
+cd ~/.vim/plugged/YouCompleteMe
 python3 install.py --all
 ```
 
@@ -459,11 +468,12 @@ some work to acquire the dependencies.
 If your Vim version is too old, you may need to [compile Vim from
 source][vim-build] (don't worry, it's easy).
 
-Install YouCompleteMe with [Vundle][].
+Install YouCompleteMe with [vim-plug][].
 
 **Remember:** YCM is a plugin with a compiled component. If you **update** YCM
-using Vundle and the `ycm_core` library APIs have changed (which happens rarely), YCM
-will notify you to recompile it. You should then rerun the installation process.
+using vim-plug and the `ycm_core` library APIs have changed (which happens
+rarely), YCM will notify you to recompile it. You should then rerun the
+installation process.
 
 Install development tools, CMake, and Python headers:
 
@@ -483,14 +493,14 @@ Compiling YCM **with** semantic support for C-family languages through
 **clangd**:
 
 ```
-cd ~/.vim/bundle/YouCompleteMe
+cd ~/.vim/plugged/YouCompleteMe
 python3 install.py --clangd-completer
 ```
 
 Compiling YCM **without** semantic support for C-family languages:
 
 ```
-cd ~/.vim/bundle/YouCompleteMe
+cd ~/.vim/plugged/YouCompleteMe
 python3 install.py
 ```
 
@@ -511,7 +521,7 @@ install with all language features, ensure `xbuild`, `go`, `node`, and `npm`
 tools are installed and in your `PATH`, then simply run:
 
 ```
-cd ~/.vim/bundle/YouCompleteMe
+cd ~/.vim/plugged/YouCompleteMe
 python3 install.py --all
 ```
 
@@ -532,7 +542,7 @@ likelihood of breakages.
 
 #### Quick start, installing all completers
 
-- Install YCM plugin via [Vundle][]
+- Install YCM plugin via [vim-plug][]
 - Install [Visual Studio Build Tools 2019][visual-studio-download]
 - Install CMake, Vim and Python
 - Install go, node and npm
@@ -574,10 +584,10 @@ This option is required by YCM. Note that it does not prevent you from editing a
 file in another encoding than UTF-8.  You can do that by specifying [the `++enc`
 argument][++enc] to the `:e` command.
 
-Install YouCompleteMe with [Vundle][].
+Install YouCompleteMe with [vim-plug][].
 
 **Remember:** YCM is a plugin with a compiled component. If you **update** YCM
-using Vundle and the `ycm_core` library APIs have changed (happens
+using vim-plug and the `ycm_core` library APIs have changed (happens
 rarely), YCM will notify you to recompile it. You should then rerun the install
 process.
 
@@ -601,14 +611,14 @@ Compiling YCM **with** semantic support for C-family languages through
 **clangd**:
 
 ```
-cd %USERPROFILE%/vimfiles/bundle/YouCompleteMe
+cd %USERPROFILE%/vimfiles/plugged/YouCompleteMe
 python install.py --clangd-completer
 ```
 
 Compiling YCM **without** semantic support for C-family languages:
 
 ```
-cd %USERPROFILE%/vimfiles/bundle/YouCompleteMe
+cd %USERPROFILE%/vimfiles/plugged/YouCompleteMe
 python install.py
 ```
 
@@ -629,7 +639,7 @@ install with all language features, ensure `msbuild`, `go`, `node` and `npm`
 tools are installed and in your `PATH`, then simply run:
 
 ```
-cd %USERPROFILE%/vimfiles/bundle/YouCompleteMe
+cd %USERPROFILE%/vimfiles/plugged/YouCompleteMe
 python install.py --all
 ```
 
@@ -4095,7 +4105,7 @@ Please note: The YCM maintainers do not specifically endorse nor necessarily hav
 
 [ycmd]: https://github.com/ycm-core/ycmd
 [Clang]: https://clang.llvm.org/
-[vundle]: https://github.com/VundleVim/Vundle.vim#about
+[vim-plug]: https://github.com/junegunn/vim-plug
 [brew]: https://brew.sh
 [cmake-download]: https://cmake.org/download/
 [macvim]: https://macvim-dev.github.io/macvim/
