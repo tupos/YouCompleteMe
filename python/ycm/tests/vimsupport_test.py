@@ -69,6 +69,15 @@ def _BuildLocations( start_line, start_column, end_line, end_column ):
 
 
 class VimsupportTest( TestCase ):
+  @patch( 'vim.eval', return_value = b'na\xc3\xafve' )
+  def test_CurrentWord( self, vim_eval ):
+    assert_that(
+      vimsupport.CurrentWord(),
+      equal_to( 'naïve' )
+    )
+    vim_eval.assert_called_once_with( "expand( '<cword>' )" )
+
+
   @patch( 'ycm.vimsupport.WinIDForWindow', side_effect = range( 1001, 1010 ) )
   @patch( 'vim.eval', new_callable = ExtendedMock )
   def test_SetLocationListsForBuffer_Current( self, vim_eval, *args ):

@@ -675,7 +675,7 @@ Quick Feature Summary
 * Automatically fix certain errors (`FixIt`)
 * Perform refactoring (`FixIt`)
 * Reference finding (`GoToReferences`)
-* Renaming symbols (`RefactorRename <new name>`)
+* Renaming symbols (`RefactorRename [<new name>]`)
 * Code formatting (`Format`)
 * Semantic highlighting
 * Inlay hints
@@ -695,7 +695,7 @@ Quick Feature Summary
 * Automatically fix certain errors (`FixIt`)
 * Perform refactoring (`FixIt`)
 * Management of OmniSharp-Roslyn server instance
-* Renaming symbols (`RefactorRename <new name>`)
+* Renaming symbols (`RefactorRename [<new name>]`)
 * Code formatting (`Format`)
 
 ### Python
@@ -707,7 +707,7 @@ Quick Feature Summary
 * Reference finding (`GoToReferences`)
 * View documentation comments for identifiers (`GetDoc`)
 * Type information for identifiers (`GetType`)
-* Renaming symbols (`RefactorRename <new name>`)
+* Renaming symbols (`RefactorRename [<new name>]`)
 
 ### Go
 
@@ -742,7 +742,7 @@ Quick Feature Summary
 * Type information for identifiers (`GetType`)
 * Automatically fix certain errors and perform refactoring (`FixIt`)
 * Perform refactoring (`FixIt`)
-* Renaming symbols (`RefactorRename <new name>`)
+* Renaming symbols (`RefactorRename [<new name>]`)
 * Code formatting (`Format`)
 * Organize imports (`OrganizeImports`)
 * Management of `TSServer` server instance
@@ -761,7 +761,7 @@ Quick Feature Summary
 * Automatically fix certain errors (`FixIt`)
 * Perform refactoring (`FixIt`)
 * Type information for identifiers (`GetType`)
-* Renaming symbols (`RefactorRename <new name>`)
+* Renaming symbols (`RefactorRename [<new name>]`)
 * Code formatting (`Format`)
 * Management of `rust-analyzer` server instance
 * Semantic highlighting
@@ -783,7 +783,7 @@ Quick Feature Summary
 * View documentation comments for identifiers (`GetDoc`)
 * Type information for identifiers (`GetType`)
 * Automatically fix certain errors including code generation (`FixIt`)
-* Renaming symbols (`RefactorRename <new name>`)
+* Renaming symbols (`RefactorRename [<new name>]`)
 * Code formatting (`Format`)
 * Organize imports (`OrganizeImports`)
 * Detection of Java projects
@@ -2435,12 +2435,18 @@ indication).
 Supported in filetypes: `c, cpp, objc, objcpp, cuda, cs, go, java, javascript,
 rust, typescript`
 
-#### The `RefactorRename <new name>` subcommand
+#### The `RefactorRename [<new name>]` subcommand
 
 In supported file types, this command attempts to perform a semantic rename of
 the identifier under the cursor. This includes renaming declarations,
 definitions, and usages of the identifier, or any other language-appropriate
 action. The specific behavior is defined by the semantic engine in use.
+
+When `<new name>` is omitted, YCM first prepares the rename and prompts for the
+new name. The prompt is pre-filled with the placeholder returned by the semantic
+engine, or with the identifier under the cursor when no placeholder is
+available. When `<new name>` is supplied, YCM uses it directly without showing
+the prompt.
 
 Similar to `FixIt`, this command applies automatic modifications to your source
 files. Rename operations may involve changes to multiple files, which may or may

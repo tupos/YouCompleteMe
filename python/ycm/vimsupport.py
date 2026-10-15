@@ -70,6 +70,10 @@ def CurrentLineAndColumn():
   return line, column
 
 
+def CurrentWord() -> str:
+  return ToUnicode( vim.eval( "expand( '<cword>' )" ) )
+
+
 def SetCurrentLineAndColumn( line, column ):
   """Sets the cursor position to the 0-based line and 0-based column."""
   # Line from vim.current.window.cursor is 1-based.

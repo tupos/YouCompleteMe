@@ -1979,7 +1979,58 @@ function! s:PollCommands( timer_id ) abort
 endfunction
 
 
+function! s:OnRenameComplete( response ) abort
+endfunction
+
+
+function! s:PromptForRename( response ) abort
+  if type( a:response ) != v:t_dict
+    return
+  endif
+
+  let new_name = ''
+  call inputsave()
+  try
+    let new_name = input(
+          \ 'New name: ',
+          \ get( a:response, 'placeholder', '' ) )
+  catch /^Vim:Interrupt$/
+  finally
+    call inputrestore()
+  endtry
+
+  if empty( new_name )
+    return
+  endif
+
+  let request_id = py3eval(
+        \ 'ycm_state.SendPreparedRenameRequestAsync( '
+        \ . 'vim.eval( "new_name" ) )' )
+  call s:RegisterCommandRequest(
+        \ request_id,
+        \ 'ApplyResponse',
+        \ function( 's:OnRenameComplete' ),
+        \ 'rename' )
+endfunction
+
+
+function! s:PrepareRename() abort
+  let request_id = py3eval(
+        \ 'ycm_state.SendPrepareRenameRequestAsync()' )
+  call s:RegisterCommandRequest(
+        \ request_id,
+        \ 'Response',
+        \ function( 's:PromptForRename' ),
+        \ 'prepare_rename' )
+endfunction
+
+
 function! s:CompleterCommand( mods, count, line1, line2, ... )
+  if a:000 ==# [ 'RefactorRename' ]
+    call s:PrepareRename()
+    return
+  endif
+
   py3 ycm_state.SendCommandRequest(
         \ vim.eval( 'a:000' ),
         \ vim.eval( 'a:mods' ),

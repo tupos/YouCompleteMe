@@ -46,6 +46,8 @@ from ycm.client.language_server_state_request import (
   SendLanguageServerStateRequestAsync,
 )
 from ycm.client.completion_request import CompletionRequest
+from ycm.client.rename_request import ( PrepareRenameRequest,
+                                        RenameRequest )
 from ycm.client.resolve_completion_request import ResolveCompletionItem
 from ycm.client.signature_help_request import ( SignatureHelpRequest,
                                                 SigHelpAvailableByFileType )
@@ -207,9 +209,10 @@ class YouCompleteMe:
     self._signature_help_available_requests = SigHelpAvailableByFileType()
     self._command_requests: dict[
       int,
-      CommandRequest | LanguageServerStateRequest
+      CommandRequest | LanguageServerStateRequest | PrepareRenameRequest
     ] = {}
     self._next_command_request_id: int = 0
+    self._latest_prepare_rename_request_id: int | None = None
     self._user_options = base.GetUserOptions( self._default_options )
     self._omnicomp = OmniCompleter( self._user_options )
     self._buffers = BufferDict(
@@ -577,15 +580,65 @@ class YouCompleteMe:
     return request_id
 
 
+  def SendPrepareRenameRequestAsync( self ) -> int:
+    if self._latest_prepare_rename_request_id is not None:
+      self.FlushCommandRequest(
+        self._latest_prepare_rename_request_id
+      )
+
+    request = PrepareRenameRequest(
+      self._request_operation_manager
+    )
+    request.Start()
+
+    request_id = self._next_command_request_id
+    self._next_command_request_id += 1
+    self._command_requests[ request_id ] = request
+    self._latest_prepare_rename_request_id = request_id
+    return request_id
+
+
+  def SendPreparedRenameRequestAsync(
+      self,
+      new_name: str
+  ) -> int:
+    _, extra_data = self._GetCommandRequestArguments(
+      [ 'RefactorRename' ],
+      False,
+      0,
+      0
+    )
+    request = RenameRequest(
+      new_name,
+      extra_data,
+      self._user_options[ 'goto_buffer_command' ],
+      self._HandleCommandResponse,
+      self._request_operation_manager
+    )
+    request.Start()
+
+    request_id = self._next_command_request_id
+    self._next_command_request_id += 1
+    self._command_requests[ request_id ] = request
+    return request_id
+
+
   def GetCommandRequest(
       self,
       request_id: int
-  ) -> CommandRequest | LanguageServerStateRequest | None:
+  ) -> (
+      CommandRequest |
+      LanguageServerStateRequest |
+      PrepareRenameRequest |
+      None
+  ):
     return self._command_requests.get( request_id )
 
 
   def FlushCommandRequest( self, request_id: int ) -> None:
     request = self._command_requests.pop( request_id, None )
+    if request_id == self._latest_prepare_rename_request_id:
+      self._latest_prepare_rename_request_id = None
     if request is not None:
       request.Cancel()
 

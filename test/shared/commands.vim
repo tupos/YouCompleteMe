@@ -1,3 +1,8 @@
+" Shared command integration-test setup and assertions.
+" Editor-specific adapters provide:
+"
+"   YcmTest_FeedInput( keys )
+
 function! SetUp()
   let g:ycm_use_clangd = 1
   let g:ycm_keep_logfiles = 1
@@ -125,4 +130,38 @@ function! Test_LanguageServerStateCommands()
 
   YcmEnableLanguageServer cpp
   call youcompleteme#test#commands#CheckNoCommandRequest()
+endfunction
+
+
+function! Test_PrepareRenamePromptsAndAppliesRename() abort
+  call youcompleteme#test#setup#OpenFile(
+        \ '/test/testdata/cpp/document_highlights.cpp',
+        \ {} )
+  call cursor( 3, 8 )
+
+  function! FeedRename( timer_id ) closure
+    call YcmTest_FeedInput(
+          \ "\<C-U>renamed_value\<CR>" )
+  endfunction
+
+  let timer_id = timer_start(
+        \ 100,
+        \ funcref( 'FeedRename' ) )
+  YcmCompleter RefactorRename
+
+  call WaitForAssert(
+        \ { ->
+        \   assert_equal(
+        \     [
+        \       '  int renamed_value = 1;',
+        \       '  renamed_value += 1;',
+        \       '  return renamed_value;',
+        \     ],
+        \     getline( 3, 5 ) ) },
+        \ 10000 )
+  call youcompleteme#test#commands#CheckNoCommandRequest()
+
+  silent! call timer_stop( timer_id )
+  delfunction FeedRename
+  %bwipeout!
 endfunction

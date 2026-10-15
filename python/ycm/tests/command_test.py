@@ -20,7 +20,7 @@ from ycm.tests.test_utils import MockVimModule, MockVimBuffers, VimBuffer
 MockVimModule()
 
 from hamcrest import assert_that, contains_exactly, equal_to, has_entries
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from unittest import TestCase
 
 from ycm.tests import YouCompleteMeInstance
@@ -96,6 +96,76 @@ class CommandTest( TestCase ):
       } )
     )
     self.assertIsNone( ycm.GetCommandRequest( request_id ) )
+
+
+  @YouCompleteMeInstance()
+  def test_SendPrepareRenameRequestAsyncCancelsSupersededPreparation(
+      self,
+      ycm: YouCompleteMe
+  ) -> None:
+    first_request: MagicMock = MagicMock()
+    second_request: MagicMock = MagicMock()
+
+    with patch(
+        'ycm.youcompleteme.PrepareRenameRequest',
+        side_effect = [ first_request, second_request ]
+    ):
+      first_request_id = ycm.SendPrepareRenameRequestAsync()
+      second_request_id = ycm.SendPrepareRenameRequestAsync()
+
+    first_request.Start.assert_called_once_with()
+    first_request.Cancel.assert_called_once_with()
+    second_request.Start.assert_called_once_with()
+    self.assertIsNone( ycm.GetCommandRequest( first_request_id ) )
+    self.assertIs(
+      ycm.GetCommandRequest( second_request_id ),
+      second_request
+    )
+    assert_that(
+      ycm._latest_prepare_rename_request_id,
+      equal_to( second_request_id )
+    )
+
+
+  @YouCompleteMeInstance()
+  def test_SendPreparedRenameRequestAsyncPreservesNewName(
+      self,
+      ycm: YouCompleteMe
+  ) -> None:
+    request: MagicMock = MagicMock()
+
+    with patch.object(
+        ycm,
+        '_GetCommandRequestArguments',
+        return_value = (
+          [ 'RefactorRename' ],
+          {
+            'options': {},
+          }
+        )
+    ):
+      with patch(
+          'ycm.youcompleteme.RenameRequest',
+          return_value = request
+      ) as rename_request:
+        request_id = ycm.SendPreparedRenameRequestAsync(
+          'ft=new_name'
+        )
+
+    rename_request.assert_called_once_with(
+      'ft=new_name',
+      {
+        'options': {},
+      },
+      'same-buffer',
+      ycm._HandleCommandResponse,
+      ycm._request_operation_manager
+    )
+    request.Start.assert_called_once_with()
+    self.assertIs(
+      ycm.GetCommandRequest( request_id ),
+      request
+    )
 
 
   @YouCompleteMeInstance( { 'g:ycm_extra_conf_vim_data': [ 'tempname()' ] } )
